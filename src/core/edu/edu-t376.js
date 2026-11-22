@@ -405,6 +405,15 @@ export default {
     aka: ["jws验签", "jws verify", "json web signature验证", "rfc 7515验签", "jws校验", "验证jws", "jws signature verification", "jws decoding", "jws checker", "jws验证工具", "检查jws", "jws 签名验证"],
   },
 
+  jweCipher: {
+    what: "用同一个入口加密或解密 RFC 7516 紧凑格式的 JWE，仅支持 `dir` + `A256GCM`。",
+    principle: "受保护头部的 Base64URL 字节作为 AES-GCM 的附加认证数据；`dir` 直接使用内容加密密钥，不封装密钥。密钥、IV 和认证标签分别为 $256$、$96$ 和 $128$ 位。\n\n```text\nprotected_header..iv.ciphertext.tag\n```",
+    usage: "加密时输入明文，填写 32 字节十六进制 `cek`，可选 `extraHeader` JSON；下载 `token.jwe`。解密时输入完整令牌与原密钥，先校验认证标签，再输出头部与明文。",
+    examples: [{ in: "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..2Iak9XKWM6MiSarF.w8fySw55EZYJdJiH4AQ.9bfr-REJvX5YjKuoYyCE_w", param: "cek=606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f", out: '=== JWE 解密成功（dir + A256GCM）===\nheader: {"alg":"dir","enc":"A256GCM"}\n\nattack at dawn', run: { dir: "decode", params: { cek: "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f" } } }],
+    tips: ["同一密钥下不得重用 IV；加密自动使用随机 IV。", "不支持 `RSA-OAEP` 等密钥封装方式；JWS 签名不是 JWE 加密。"],
+    aka: ["JWE 加密", "JWE 解密", "JSON Web Encryption", "JWE encrypt", "JWE decrypt", "RFC 7516", "compact JWE", "dir JWE", "A256GCM", "JOSE encryption", "JWE token", "JWE CEK"],
+  },
+
   jweEncrypt: {
     what: "JWE 加密（RFC 7516 compact）：dir + AES-256-GCM——CEK 直接给 32B hex，五段输出，encrypted_key 段为空。额外 header 不得更改 alg/enc。",
     principle:

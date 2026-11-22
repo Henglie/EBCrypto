@@ -52,6 +52,14 @@ import { register } from "./registry.js";
 // ============================================================
 const SIG_FIELD_KEYS = ["sigA", "sigB", "textB"]; // textB = inputContract 的显式旧别名，只作 B 兜底
 
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null，并归一化为 Uint8Array。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  if (ArrayBuffer.isView(b)) return b instanceof Uint8Array ? b : new Uint8Array(b.buffer, b.byteOffset, b.byteLength);
+  return new Uint8Array(b);
+}
+
 function sigBytesOf(v, label) {
   if (v instanceof Uint8Array) return v;
   if (v instanceof ArrayBuffer) return new Uint8Array(v);
@@ -457,9 +465,9 @@ function b64ToBytes(s) {
   return out;
 }
 function ssdeepInputToBytes(text, p) {
-  if (p && p.rawBytes != null) {
-    return p.rawBytes instanceof Uint8Array ? p.rawBytes : new Uint8Array(p.rawBytes);
-  }
+ // 真字节（拖入文件 / hex·base64 视图）无条件优先；rawBytesOf 统一归一化 ArrayBuffer / DataView / 数组。
+  const rb = rawBytesOf(p);
+  if (rb) return rb;
   const enc = (p && p.inputEnc) || "auto";
   const s = String(text).trim().replace(/\s+/g, "");
   if (enc === "hex") {

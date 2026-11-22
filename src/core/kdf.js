@@ -152,6 +152,12 @@ const PBE_DEFAULT_WORDS = [
   "letmein", "qwerty", "123456789", "12345678", "111111", "000000", "toor",
   "pass", "test", "hello", "welcome", "master", "dragon", "monkey", "abc123",
 ];
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null，并归一化为 Uint8Array。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
 async function pbeAesBrute(cipherInput, p) {
   ensureSubtle();
   const salt = parseBytes((p && p.salt) || "", (p && p.saltFormat) || "utf8");
@@ -161,7 +167,8 @@ async function pbeAesBrute(cipherInput, p) {
   const mode = ((p && p.mode) || "CBC").toUpperCase();
   const cipherFormat = (p && p.cipherFormat) || "hex";
   const crib = (p && p.crib) || "";
-  const cipherBytes = cipherFormat === "base64" ? _b64ToBytes(cipherInput) : _hexToBytes(cipherInput);
+  // hex/base64 视图或拖入文件已给出真字节 → 无条件优先，跳过 cipherFormat 文本解析。
+  const cipherBytes = rawBytesOf(p) || (cipherFormat === "base64" ? _b64ToBytes(cipherInput) : _hexToBytes(cipherInput));
   if (!cipherBytes.length) return "密文为空或格式错误（应为 hex 或 base64）。";
   const iv = mode === "ECB" ? null : ((p && p.ivHex) ? _hexToBytes(p.ivHex) : new Uint8Array(16));
   // 口令来源：wordlist 参数（多行）优先，否则内置字典
@@ -218,6 +225,7 @@ register({
     { key: "crib", label: "已知明文特征 (crib, 正则/子串)", type: "text", default: "", placeholder: "如 flag\\{" },
   ],
   run: (t, p) => pbeAesBrute(t, p || {}),
+  acceptsBytes: true,
 });
 
 export { pbkdf2, hkdf, parseBytes, pbeAesBrute };

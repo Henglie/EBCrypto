@@ -486,16 +486,22 @@ function summarizeLevelDat(root) {
 // ============================================================
 // run
 // ============================================================
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null，并归一化为 Uint8Array。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 async function mcLevelDatRun(text, p = {}) {
-  if ((!text || !String(text).trim()) && !(p && p.rawBytes && p.rawBytes.length)) {
+  const rb = rawBytesOf(p);
+  if ((!text || !String(text).trim()) && !(rb && rb.length)) {
     return "（空输入）请粘贴 level.dat 文件的 hex 或 base64 编码。level.dat 是 gzip 压缩的 NBT，位于世界存档根目录。";
   }
   let bytes;
   try {
- // 拖入文件走 rawBytes 通道（acceptsBytes 约定）：直接用真字节，跳过 hex/base64 文本解析。
-    bytes = (p && p.rawBytes && p.rawBytes.length)
-      ? (p.rawBytes instanceof Uint8Array ? p.rawBytes : new Uint8Array(p.rawBytes))
-      : inputToBytes(text, p.inputEnc || "auto");
+ // 拖入文件 / hex·base64 视图走 rawBytes 通道（acceptsBytes 约定）：真字节无条件优先，跳过文本解析。
+    bytes = (rb && rb.length) ? rb : inputToBytes(text, p.inputEnc || "auto");
   } catch (e) {
     return "输入解析失败：" + (e && e.message ? e.message : String(e));
   }

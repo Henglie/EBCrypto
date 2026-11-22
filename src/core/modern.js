@@ -94,15 +94,25 @@ function decodeInput(text, enc) {
   }
 }
 /** 把字节按声明编码转成文本。 */
-function encodeOutput(bytes, enc) {
+function encodeOutputText(bytes, enc) {
   switch (enc) {
     case "hex": return bytesToHex(bytes);
     case "base64": return bytesToB64(bytes);
     case "latin1": { let s = ""; for (const x of bytes) s += String.fromCharCode(x); return s; }
     case "utf8":
     default: return finishBytesDecode(bytes, { textMode: "hex", name: "decoded" });
-  }
+ 
+ }
 }
+/** 统一输出契约：text 保持旧值（配方/产物/文案不变），bytes 供全局输出视图渲染 hex/base64。 */
+function encodeOutput(bytes, enc) {
+  const t = encodeOutputText(bytes, enc);
+  const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  // 原分支可能已返回产物对象（含 text/files）：合并而非嵌套
+  if (t && typeof t === "object") return { ...t, bytes: t.bytes || b };
+  return { text: t, bytes: b };
+}
+
 
 // ============================================================
 // 填充（统一实现，供 AES/DES/3DES 与其余分组密码模块复用）
@@ -1254,12 +1264,12 @@ function xorApply(data, key, scheme = "Standard", nullPreserving = false) {
   ];
   const enc = (text, p) => {
     const key = decodeInputIo(p.key || "", p.keyEnc || "utf8");
-    const data = rawBytesOrNull(p, text) || decodeInputIo(text, (p && p.inEnc) || "utf8");
+    const data = rawBytesOf(p) || decodeInputIo(text, (p && p.inEnc) || "utf8");
     return encodeOutputIo(rc4(data, key), p.outEnc || "base64");
   };
   const dec = (text, p) => {
     const key = decodeInputIo(p.key || "", p.keyEnc || "utf8");
-    const data = rawBytesOrNull(p, text.trim()) || decodeInputIo(text.trim(), (p && p.inEnc) || p.outEnc || "base64");
+    const data = rawBytesOf(p) || decodeInputIo(text.trim(), (p && p.inEnc) || p.outEnc || "base64");
     return encodeOutputIo(rc4(data, key), "utf8");
   };
   register({
@@ -1271,12 +1281,12 @@ function xorApply(data, key, scheme = "Standard", nullPreserving = false) {
 {
   const enc = (text, p) => {
     const key = decodeInputIo(p.key || "", p.keyEnc || "utf8");
-    const data = rawBytesOrNull(p, text) || decodeInputIo(text, "utf8");
+    const data = rawBytesOf(p) || decodeInputIo(text, "utf8");
     return encodeOutputIo(xorApply(data, key, p.scheme || "Standard", !!p.nullPreserving), p.outEnc || "base64");
   };
   const dec = (text, p) => {
     const key = decodeInputIo(p.key || "", p.keyEnc || "utf8");
-    const data = rawBytesOrNull(p, text.trim()) || decodeInputIo(text.trim(), p.outEnc || "base64");
+    const data = rawBytesOf(p) || decodeInputIo(text.trim(), p.outEnc || "base64");
     return encodeOutputIo(xorApply(data, key, p.scheme || "Standard", !!p.nullPreserving), "utf8");
   };
   register({
@@ -1353,14 +1363,14 @@ register({
   ],
   acceptsBytes: true,
   encode: (text, p) => {
-    const raw = rawBytesOrNull(p, text);
+    const raw = rawBytesOf(p);
     const m = raw ? bytesToBigInt(raw) : rsaTextToInt(text, p.dataEnc || "dec");
     const e = BigInt((p.e || "65537").trim());
     const n = rsaResolveN(p);
     return rsaIntToText(rsaPow(m, e, n), p.outEnc || "dec");
   },
   decode: (text, p) => {
-    const raw = rawBytesOrNull(p, text);
+    const raw = rawBytesOf(p);
     const c = raw ? bytesToBigInt(raw) : rsaTextToInt(text, p.dataEnc || "dec");
     const d = rsaResolveD(p);
     const n = rsaResolveN(p);

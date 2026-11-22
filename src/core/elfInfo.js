@@ -32,6 +32,13 @@
 import { register } from "./registry.js";
 import { inputToBytes } from "./compress.js";
 
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null，并归一化为 Uint8Array。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 // ============ 基础工具 ============
 
 const ELF_MAGIC = [0x7f, 0x45, 0x4c, 0x46];
@@ -180,11 +187,12 @@ export function parseElfInfo(data) {
 
 function elfInfoRun(text, p) {
   const pp = p || {};
-  if ((!text || !String(text).trim()) && !(pp.rawBytes && pp.rawBytes.length)) {
+  const rb = rawBytesOf(pp);
+  if ((!text || !String(text).trim()) && !(rb && rb.length)) {
     return "（空输入）请拖入 ELF 可执行文件或粘贴 hex / base64 字节。";
   }
   let data;
-  try { data = inputToBytes(text, pp); }
+  try { data = rb || inputToBytes(text, pp); }
   catch (e) { return "输入解析失败：" + (e && e.message ? e.message : String(e)); }
 
   const info = parseElfInfo(data);

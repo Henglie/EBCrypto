@@ -12,7 +12,7 @@
  * 产物协议：{ text, files }（）。
  * 北极星：纯函数、零 UI 依赖、注释含标准出处。
  */
-import { register } from "./registry.js";
+import { register, registerAlias } from "./registry.js";
 import { hmacShaBytes } from "./token.js";
 import { aesGcmEncrypt, aesGcmDecrypt } from "./modern.js";
 import { modPow } from "./primeGen.js";
@@ -239,17 +239,11 @@ register({
 });
 
 // ============================================================
-// op 3/4：JWE 加密 / 解密（RFC 7516）
+// JWE 加密 / 解密（RFC 7516）
 // ============================================================
-register({
-  id: "jweEncrypt", cat: "modern",
-  family: "jwe", familyLabel: "encrypt", name: "JWE 加密",
-   desc: "JWE 加密（RFC 7516 compact）：dir+AES-256-GCM（alg=dir, enc=A256GCM）——CEK 直接给 32B hex；五段输出，第二段为空。额外 header 不得更改 alg/enc",
-  params: [
-    { key: "cek", label: "CEK（32B hex，A256GCM 直接内容加密密钥）", type: "text", default: "" },
-    { key: "extraHeader", label: "额外 header 字段（JSON，可空）", type: "text", default: "" },
-  ],
-  run: async (text, p) => {
+const jweCek = { key: "cek", label: "CEK（32B hex，A256GCM 直接内容加密密钥）", type: "text", default: "", sensitive: true };
+const jweExtraHeader = { key: "extraHeader", label: "额外 header 字段（JSON，可空）", type: "text", default: "" };
+const jweEncode = async (text, p) => {
     const cek = hexToBytesLike(String(p.cek || "").trim());
     if (cek.length !== 32) throw new Error(`A256GCM 的 CEK 须为 32 字节 hex（当前 ${cek.length}）`);
     let extra = {};
@@ -265,17 +259,8 @@ register({
     const token = [hSeg, b64url(new Uint8Array(0)), b64url(iv), b64url(ct), b64url(tag)].join(".");
     const textOut = `=== JWE 加密（RFC 7516，dir + A256GCM）===\n\n${token}`;
     return { text: textOut + "\n\n产物：1 个文件可下载", files: [{ name: "token.jwe", mime: "application/jose", bytes: TE_ENC.encode(token) }] };
-  },
-});
-
-register({
-  id: "jweDecrypt", cat: "modern",
-  family: "jwe", familyLabel: "decrypt", name: "JWE 解密",
-  desc: "JWE 解密（RFC 7516 compact，dir+A256GCM）：重算 GCM 认证标签，输出明文 + header 全字段；篡改任一段必拒",
-  params: [
-    { key: "cek", label: "CEK（32B hex）", type: "text", default: "" },
-  ],
-  run: async (text, p) => {
+};
+const jweDecode = async (text, p) => {
     const seg = String(text ?? "").trim().split(".");
     if (seg.length !== 5) throw new Error(`JWE compact 应为 5 段（实际 ${seg.length}）`);
     const hdr = await jsonHeader(seg[0], "dir");
@@ -299,7 +284,23 @@ register({
       td.decode(pt),
     ];
     return { text: lines.join("\n"), files: [] };
-  },
+};
+register({
+  id: "jweCipher", cat: "modern", family: "jwe", familyLabel: "cipher", name: "JWE 加解密",
+  desc: "JWE 紧凑序列化（RFC 7516），仅支持 dir + A256GCM；使用 32 字节内容加密密钥。",
+  params: [
+    { ...jweCek, labelKey: "op.jweCipher.param.cek" },
+    { ...jweExtraHeader, dir: "encode", labelKey: "op.jweCipher.param.extraHeader" },
+  ],
+  encode: jweEncode, decode: jweDecode,
+});
+registerAlias({
+  id: "jweEncrypt", aliasOf: "jweCipher", dir: "encode", name: "JWE 加密",
+  params: [{ ...jweCek }, { ...jweExtraHeader }], run: jweEncode, encode: jweEncode,
+});
+registerAlias({
+  id: "jweDecrypt", aliasOf: "jweCipher", dir: "decode", name: "JWE 解密",
+  params: [{ ...jweCek, label: "CEK（32B hex）" }], run: jweDecode, decode: jweDecode,
 });
 
 // ============================================================

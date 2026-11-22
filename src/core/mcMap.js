@@ -25,6 +25,14 @@ import { register } from "./registry.js";
 import { inputToBytes } from "./pcapParse.js";
 import { decompressAndParseNBT } from "./mcSave.js";
 
+// 拖入文件走 rawBytes 通道（acceptsBytes 约定）：统一归一化为 Uint8Array。
+// Uint8Array / ArrayBuffer / 普通数组都能用；无字节返回 null。
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 // ============================================================
 // Compound 取值助手（Compound 项形如 { __t, v }）
 // ============================================================
@@ -313,7 +321,8 @@ export function previewDataURL(rgba, width, height) {
 // run
 // ============================================================
 async function mcMapRenderRun(text, p = {}) {
-  if ((!text || !String(text).trim()) && !(p && p.rawBytes && p.rawBytes.length)) {
+  const rb = rawBytesOf(p);
+  if ((!text || !String(text).trim()) && !(rb && rb.length)) {
     return "（空输入）请粘贴 map_#.dat 文件的 hex 或 base64。\n" +
       "map_#.dat 是 gzip 压缩的 NBT，位于世界存档 data/ 目录；根下 data.colors 为 16384 字节\n" +
       "（128×128）调色板索引。本工具解码成 128×128 RGBA 并输出 PNG（data URL）。\n" +
@@ -322,8 +331,8 @@ async function mcMapRenderRun(text, p = {}) {
   let bytes;
   try {
  // 拖入文件走 rawBytes 通道（acceptsBytes 约定）：直接用真字节，跳过 hex/base64 文本解析。
-    bytes = (p && p.rawBytes && p.rawBytes.length)
-      ? (p.rawBytes instanceof Uint8Array ? p.rawBytes : new Uint8Array(p.rawBytes))
+    bytes = (rb && rb.length)
+      ? rb
       : inputToBytes(text, p.inputEnc || "auto");
   } catch (e) {
     return "输入解析失败：" + (e && e.message ? e.message : String(e));

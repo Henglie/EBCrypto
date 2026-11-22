@@ -26,6 +26,15 @@ import { register } from "./registry.js";
 import { decodePcap, reassembleFlows, reassembleDir } from "./pcapDeep.js";
 import { sha256Hex } from "./shaExt.js";
 
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null，并归一化为 Uint8Array。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  if (b instanceof Uint8Array) return b;
+  if (ArrayBuffer.isView(b)) return new Uint8Array(b.buffer, b.byteOffset, b.byteLength);
+  return new Uint8Array(b);
+}
+
 // ============================================================
 // 小工具（与 pcapDeep 同风格，件内私有）
 // ============================================================
@@ -141,7 +150,9 @@ const XFER_CMDS = new Set(["RETR", "STOR", "APPE", "LIST", "NLST", "MLSD"]);
 // run
 // ============================================================
 function ftpExtractRun(text, p = {}) {
-  const res = decodePcap(text, p.inputEnc, p);
+  // 真字节无条件优先：rawBytes 归一化为 Uint8Array 后交给 decodePcap（其内部亦优先 rawBytes；此处补 ArrayBuffer/普通数组归一化）
+  const rb = rawBytesOf(p);
+  const res = decodePcap(rb && rb.length ? "" : text, p.inputEnc, rb ? { ...p, rawBytes: rb } : p);
   if (res.error) return res.error;
   const ftpPort = parseInt(p.ftpPort, 10) || 21;
   const preview = parseInt(p.previewBytes, 10) || 400;

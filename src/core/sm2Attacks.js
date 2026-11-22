@@ -115,6 +115,60 @@ export function recoverSM2CrossUserNonce(data) {
   const result = recoverSM2SigningKey({ r1: data.r2, s1: data.s2, e1: e2.toString(16), k: k.toString(16), publicKey: data.publicKey2 }, "known");
   return { ...result, signaturesChecked: 2, knownKeyUser: 1, recoveredKeyUser: 2 };
 }
+// sm2NonceRecover 的参数框定义 → recoverSM2SigningKey 的 JSON 对象。
+// 同一份签名分量在四个模式下语义相同，只声明一个参数框，modes 列出它参与哪些模式；
+// 不再按模式复制 r1/s1/e1 成四份。旧调用走主输入 JSON，两者都给且不一致时报错。
+// modes 省略表示所有模式通用。
+const SIG_FIELD_DEFS = [
+  { key: "r1", real: "r1", modes: ["reuse", "known", "related", "cross"], label: "签名1（cross:用户1）· r（hex）" },
+  { key: "s1", real: "s1", modes: ["reuse", "known", "related", "cross"], label: "签名1（cross:用户1）· s（hex）" },
+  { key: "e1", real: "e1", modes: ["reuse", "known", "related", "cross"], label: "签名1（cross:用户1）· e（hex）" },
+  { key: "r2", real: "r2", modes: ["reuse", "related", "cross"], label: "签名2（cross:用户2）· r（hex）" },
+  { key: "s2", real: "s2", modes: ["reuse", "related", "cross"], label: "签名2（cross:用户2）· s（hex）" },
+  { key: "e2", real: "e2", modes: ["reuse", "related", "cross"], label: "签名2（cross:用户2）· e（hex；cross 可留空用 message2）" },
+  { key: "k", real: "k", modes: ["known"], label: "泄露的签名随机数 k（hex）" },
+  { key: "a", real: "a", modes: ["related"], label: "关联系数 a（hex，可 0）" },
+  { key: "b", real: "b", modes: ["related"], label: "关联系数 b（hex，可 0）" },
+  { key: "d1", real: "d1", modes: ["cross"], label: "用户1 私钥 d1（hex）" },
+  { key: "message1", real: "message1", modes: ["cross"], label: "用户1 原文 UTF-8（替代 e1）", text: true },
+  { key: "message2", real: "message2", modes: ["cross"], label: "用户2 原文 UTF-8（替代 e2）", text: true },
+  { key: "id1", real: "id1", modes: ["cross"], label: "用户1 ID（默认 1234567812345678）", text: true },
+  { key: "id2", real: "id2", modes: ["cross"], label: "用户2 ID（默认 1234567812345678）", text: true },
+  { key: "publicKey", real: "publicKey", label: "公钥交叉验证（可选，hex）" },
+  { key: "publicKey2", real: "publicKey2", modes: ["cross"], label: "用户2 公钥交叉验证（可选，hex）" },
+];
+export function sm2NonceFieldsToData(text, params = {}) {
+  // attackMode 是旧通道：显式给了值就以它为准，否则用新键 mode，最后才默认 reuse。
+  // 不能写成 params.mode || params.attackMode —— mode 有非空默认值会永久盖住旧通道。
+  const mode = (params.attackMode && String(params.attackMode).trim()) || params.mode || "reuse";
+  const primary = String(text ?? "").trim();
+  const supplied = {};
+  // 主路径：每个字段是参数面板上的一个参数框，键即 def.key。
+  // 兼容 params.fields（早期候选调用形态），但那不是本 op 的现用 UI 形态。
+  const source = (params.fields && typeof params.fields === "object") ? params.fields : params;
+  for (const def of SIG_FIELD_DEFS) {
+    if (def.modes && !def.modes.includes(mode)) continue;
+    const slot = source[def.key];
+    if (slot == null) continue;
+    const value = slot && typeof slot === "object" && "value" in slot ? slot.value : slot;
+    if (value == null || String(value).trim() === "") continue;
+    supplied[def.real] = String(value).trim();
+  }
+  let legacy = null;
+  if (primary) {
+    try { legacy = JSON.parse(primary); } catch { throw new Error("输入 JSON：{r1,s1,e1,r2,s2,e2} 或 {r1,s1,e1,k}；或用下方字段框录入"); }
+    if (!legacy || typeof legacy !== "object" || Array.isArray(legacy)) throw new Error("签名输入须为 JSON 对象 / JSON object required");
+  }
+  if (legacy && Object.keys(supplied).length) {
+    for (const [key, value] of Object.entries(supplied)) {
+      if (legacy[key] != null && String(legacy[key]).trim() !== value) throw new Error(`签名字段 ${key} 与主输入 JSON 不一致：一个输入只允许一个来源`);
+    }
+  }
+  const data = { ...(legacy || {}), ...supplied };
+  if (!Object.keys(data).length) throw new Error("请输入签名数据：用主输入 JSON，或在右侧参数框逐项填写");
+  return { data, mode };
+}
+
 export function decryptSM2LeakedK(ciphertext, options = {}) {
   const cipher = parseCipher(ciphertext, options.order || "c1c3c2", options.c1Encoding || "04", "ciphertext");
   const k = integer(options.k, "k");
@@ -160,14 +214,20 @@ register({
 });
 register({
   id: "sm2NonceRecover", cat: "crypto", name: "SM2 签名随机数攻击（私钥恢复）",
-  desc: "已知签名 k，或同一私钥两次签名复用 k，按 SM2 方程恢复私钥。输入 JSON 的 r1/s1/e1、r2/s2/e2 或 k 均为 hex；e=SM3(ZA||M)。校验签名方程，可选公钥交叉验证。",
+  desc: "已知签名 k，或同一私钥两次签名复用 k，按 SM2 方程恢复私钥。在右侧参数框按攻击条件逐项录入 hex，或保留旧的主输入 JSON；e=SM3(ZA||M)。校验签名方程，可选公钥交叉验证。",
   io: "text", autoRun: false,
-  params: [{ key: "attackMode", label: "攻击条件", type: "select", default: "reuse", options: [{ value: "reuse", label: "两次签名复用 k" }, { value: "known", label: "一次签名 k 泄露" }, { value: "related", label: "关联随机数 k2 = a*k1 + b（JSON 增加 a/b hex）" }, { value: "cross", label: "跨用户共用 k（已知 d1，恢复 d2；可填完整 signature1/2 与 message1/2）" }] }],
+  params: [
+    { key: "mode", label: "攻击条件", type: "select", default: "reuse", options: [{ value: "reuse", label: "两次签名复用 k" }, { value: "known", label: "一次签名 k 泄露" }, { value: "related", label: "关联随机数 k2 = a*k1 + b" }, { value: "cross", label: "跨用户共用 k" }] },
+    { key: "attackMode", label: "攻击条件（旧通道）", type: "select", uiHidden: true, default: "", options: [{ value: "", label: "跟随 mode" }, { value: "reuse", label: "reuse" }, { value: "known", label: "known" }, { value: "related", label: "related" }, { value: "cross", label: "cross" }] },
+    // 签名字段全部作为参数框呈现（同 sm2KnownPlaintext 的 knownCipher/known），按 mode 显隐。
+    ...SIG_FIELD_DEFS.map(d => ({ key: d.key, label: d.label, type: d.text ? "text" : "textarea", rows: 2,
+      ...(d.modes ? { mode: d.modes.join(",") } : {}), default: "",
+      placeholder: d.text ? "UTF-8 文本" : "hex 整数（可带 0x）" })),
+  ],
   run(text, params = {}) {
     if (String(text).length > 8192) throw new Error("签名 JSON 最大 8 KiB / input too large");
-    let data;
-    try { data = JSON.parse(text); } catch { throw new Error("输入 JSON：{r1,s1,e1,r2,s2,e2} 或 {r1,s1,e1,k}，值为 hex"); }
-    const r = recoverSM2SigningKey(data, params.attackMode || "reuse");
+    const { data, mode } = sm2NonceFieldsToData(text, params);
+    const r = recoverSM2SigningKey(data, mode);
     return ["SM2 签名私钥恢复 / Signing key recovery", `d = ${r.privateKey}`, `k = ${r.nonce}`, `publicKey = ${r.publicKey}`,
       `已校验 / Checked: ${r.signaturesChecked} signature equation(s) with supplied e=SM3(ZA||M).`, "未自行核对原文与 ZA / Message and ZA binding depends on the supplied digest."].join("\n");
   },

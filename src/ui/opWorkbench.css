@@ -117,7 +117,7 @@
 .io-area.io-readonly { -webkit-user-modify: read-only; }
 .op-data .io-area:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .op-data .io-area { scroll-padding-top: 48px; }
-.op-data .io-area { height: clamp(144px, calc((100dvh - 340px) / 2), 320px); padding: 48px 16px 16px; }
+.op-data .io-area { height: calc(clamp(144px, calc((100dvh - 340px) / 2), 320px) * var(--io-height-scale)); padding: 48px 16px 16px; }
 .op-data .io-out-media:empty { display: none; }
 .op-data .io-input-body > .io-none-hint { min-height: 88px; padding-top: 44px; }
 .op-data .io-input-body > .io-fields { padding-top: 40px; }
@@ -153,7 +153,7 @@
 .special-workbench[data-layout="split"] > .special-config,
 .special-workbench[data-layout="split"] > .special-data { max-height: var(--special-room); overflow: auto; scrollbar-width: thin; }
 .special-workbench .io-area { min-width: 0; max-width: 100%; }
-.special-workbench .recipe-io { height: clamp(140px, 24dvh, 300px); }
+.special-workbench .recipe-io { height: calc(clamp(140px, 24dvh, 300px) * var(--io-height-scale)); }
 .special-workbench .et-toolbar { flex-wrap: wrap; }
 .special-workbench .recipe-chain { min-height: 120px; }
 .special-workbench .recipe-node-params { min-width: 0; }
@@ -268,7 +268,7 @@
   .op-config .param > label:not(.switch) { flex-basis: 100%; }
   .op-config .param:has(> .switch) { flex-wrap: nowrap; }
   .op-config .param:has(> .switch) > label:not(.switch) { flex: 1; }
-  .op-workbench[data-layout="stack"] .op-data .io-area { height: 196px; }
+  .op-workbench[data-layout="stack"] .op-data .io-area { height: calc(196px * var(--io-height-scale)); }
   .op-data .io-pane-tools { gap: 0; }
   .op-data .io-actions { gap: 8px; }
   .op-data .io-actions > .primary { min-width: 116px; }

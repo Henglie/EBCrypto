@@ -261,8 +261,19 @@ async function decryptDirection(recs, writeKey, salt) {
 // ============================================================
 // run
 // ============================================================
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null，并归一化为 Uint8Array。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  if (ArrayBuffer.isView(b)) return b instanceof Uint8Array ? b : new Uint8Array(b.buffer, b.byteOffset, b.byteLength);
+  return new Uint8Array(b);
+}
+
 async function tlsDecryptRun(text, p = {}) {
-  const res = decodePcap(text, p.inputEnc, p);
+ // 真字节（拖入 pcap / hex·base64 视图）先归一化再交给 decodePcap：
+ // decodePcap 用 `rawBytes.length` 判空，ArrayBuffer 会得到 undefined 而被误判「空输入」。
+  const rb = rawBytesOf(p);
+  const res = decodePcap(text, p.inputEnc, rb ? { ...p, rawBytes: rb } : p);
   if (res.error) return res.error;
   const keylogText = String(p.keylog || "");
   const preview = parseInt(p.previewBytes, 10) || 400;

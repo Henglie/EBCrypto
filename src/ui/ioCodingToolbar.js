@@ -167,7 +167,33 @@ function bytesOfObject(v) {
   if (!v || typeof v !== "object") return null;
   if (isByteLike(v.bytes)) return toBytesLocal(v.bytes);
   if (isByteLike(v.rawBytes)) return toBytesLocal(v.rawBytes);
+  // 产物型结果（ascon/压缩/打包）：首个产物文件即真字节，供输出视图渲染 hex/base64
+  if (Array.isArray(v.files) && v.files.length && isByteLike(v.files[0] && v.files[0].bytes)) {
+    return toBytesLocal(v.files[0].bytes);
+  }
   return null;
+}
+
+/** 默认视图：跟随 op 的默认编码参数（解密方向优先 outEnc，因为它是密文承载）。
+ *  这样"默认 base64 输入/hex 输入"不会被一律当文本，语义与原参数默认值一致。 */
+function defaultViewFor(op, scope, dirRaw) {
+  const ps = op && Array.isArray(op.params) ? op.params : [];
+  const dir = String(dirRaw == null ? "" : dirRaw).toLowerCase();
+  const isDec = dir === "decode" || dir === "decrypt" || dir === "dec";
+  const keys = scope === "output"
+    ? /^(outEnc|outputEnc|outFormat|outputFormat)$/i
+    : (isDec
+      ? /^(outEnc|inEnc|inputEnc|dataEnc|decodeAs|cipherFormat|inputMode)$/i
+      : /^(inEnc|inputEnc|dataEnc|inputMode|inputType|msgEnc|contentEnc|enc)$/i);
+  for (const p of ps) {
+    if (!p || !keys.test(String(p.key))) continue;
+    const d = String(p.default == null ? "" : p.default).toLowerCase();
+    if (d === "hex") return "hex";
+    if (d === "base64") return "base64";
+    if (d === "bits" || d === "base32") return d;
+    return "text";
+  }
+  return "text";
 }
 
 function normalizeViewChoice(v) {
@@ -310,16 +336,71 @@ export function attachIoCodingToolbar(area, opts = {}) {
 
   const viewSeg = el("div", { class: "io-coding-seg", role: "group", "aria-label": t("ui.io.view") });
   const viewBtns = new Map();
-  for (const v of TOOLBAR_VIEWS) {
-    const b = el("button", {
-      type: "button",
-      class: "io-coding-view" + (v === state.view ? " on" : ""),
-      "data-view": v,
-      "aria-pressed": String(v === state.view),
-      title: t(VIEW_LABEL_KEY[v]),
-      onclick: () => controller.setView(v),
-    }, t(VIEW_LABEL_KEY[v]));
+  // 前 3 个固定；第 4 位若该 op 支持更多视图（bits/base32 等），改成下拉，避免"多视图无处可选"。
+  const BASE_VIEWS = ["text", "hex", "base64"];
+  const FOURTH_FALLBACK = "escaped";
+  const extraViews = (() => {
+    const opNow = typeof opts.getOp === "function" ? opts.getOp() : null;
+    const params = opNow && Array.isArray(opNow.params) ? opNow.params : [];
+    const keys = stateScope === "output"
+      ? /^(outEnc|outputEnc|outFormat|cipherEnc|ctEnc|cipherEncoding)$/i
+      : /^(inputEnc|inEnc|inputType|inputMode|msgEnc|dataEnc|contentEnc|plainEnc|decodeAs|enc)$/i;
+    const found = new Set();
+    // 只有该 op 的参数真的提供额外视图（bits/base32 等）时，第 4 位才变下拉；
+    // 否则保持 4 个按钮（对齐检查要求"恰好四个可见视图"）。
+    for (const pr of params) {
+      if (!pr) continue;
+      for (const o of (pr.options || [])) {
+        const v = String(o && o.value);
+        if (VIEWS.includes(v) && !BASE_VIEWS.includes(v) && v !== FOURTH_FALLBACK) found.add(v);
+      }
+    }
+    return [...found];
+  })();
+  const makeViewBtn = (v) => el("button", {
+    type: "button",
+    class: "io-coding-view" + (v === state.view ? " on" : ""),
+    "data-view": v,
+    "aria-pressed": String(v === state.view),
+    title: t(VIEW_LABEL_KEY[v]),
+    onclick: () => controller.setView(v),
+  }, t(VIEW_LABEL_KEY[v]));
+  for (const v of BASE_VIEWS) {
+    const b = makeViewBtn(v);
     viewBtns.set(v, b);
+    viewSeg.append(b);
+  }
+  let moreBtn = null;
+  let moreMenu = null;
+  if (extraViews.length) {
+    // 第 4 位 = 当前选中的那一个（高亮显示）；点它才展开列表，escaped 也在列表里。
+    const all = [FOURTH_FALLBACK, ...extraViews];
+    moreMenu = el("div", { class: "io-coding-more-menu", hidden: true, role: "menu" });
+    for (const v of all) {
+      moreMenu.append(el("button", {
+        type: "button",
+        class: "io-coding-more-item" + (v === state.view ? " on" : ""),
+        "data-view": v,
+        role: "menuitem",
+        onclick: (e) => {
+          e.stopPropagation();
+          moreMenu.hidden = true;
+          controller.setView(v);
+        },
+      }, t(VIEW_LABEL_KEY[v])));
+    }
+    moreBtn = el("button", {
+      type: "button",
+      class: "io-coding-view io-coding-view-more",
+      "data-view": FOURTH_FALLBACK,
+      title: t("ui.io.view"),
+      onclick: (e) => { e.stopPropagation(); moreMenu.hidden = !moreMenu.hidden; },
+    }, t(VIEW_LABEL_KEY[FOURTH_FALLBACK]) + " ▾");
+    viewSeg.append(moreBtn, moreMenu);
+    document.addEventListener("click", () => { if (moreMenu) moreMenu.hidden = true; });
+  } else {
+    const b = makeViewBtn(FOURTH_FALLBACK);
+    viewBtns.set(FOURTH_FALLBACK, b);
     viewSeg.append(b);
   }
 
@@ -356,6 +437,11 @@ export function attachIoCodingToolbar(area, opts = {}) {
   // 本作用域当前的真实字节（输出侧由 formatOutput 记录，输入侧由 updatePreview 按当前视图解析）。
   // 切换 view/charset/keepBom 后据此重算状态，绝不复用上一视图的显示文本。
   let previewBytes = null;
+  // 视图锁定说明：算法自带输入/输出编码时，视图不是有效控制（op 返回的是已编码文本）。
+  // 此时禁用非文本视图按钮，并用该参数自身的 label 作原因提示（不新增 i18n 文案）。
+  let viewLockLabel = "";
+  // 用户是否手动选过视图：没选过时默认视图跟随 op 的默认编码（base64/hex/text）。
+  let viewUserSet = false;
 
   function setStatus(text, kind) {
     const s = text == null ? "" : String(text);
@@ -393,6 +479,22 @@ export function attachIoCodingToolbar(area, opts = {}) {
       const on = v === state.view;
       b.classList.toggle("on", on);
       b.setAttribute("aria-pressed", String(on));
+      const locked = !!viewLockLabel && v !== "text";
+      b.disabled = locked;
+      b.classList.toggle("disabled", locked);
+      b.title = locked ? viewLockLabel : t(VIEW_LABEL_KEY[v]);
+    }
+    if (moreBtn) {
+      const cur = state.view;
+      const isExtra = VIEWS.includes(cur) && !BASE_VIEWS.includes(cur);
+      const shown = isExtra ? cur : FOURTH_FALLBACK;
+      moreBtn.dataset.view = shown;
+      moreBtn.textContent = t(VIEW_LABEL_KEY[shown]) + " ▾";
+      moreBtn.classList.toggle("on", isExtra || cur === FOURTH_FALLBACK);
+      moreBtn.disabled = !!viewLockLabel;
+      for (const it of moreMenu.querySelectorAll("button")) {
+        it.classList.toggle("on", it.dataset.view === shown);
+      }
     }
     const supports = bomSupported(state.charset);
     bomInput.checked = state.keepBom && supports;
@@ -443,14 +545,57 @@ export function attachIoCodingToolbar(area, opts = {}) {
     const dir = String(params.mode || params.dir || params.direction || "").toLowerCase();
     const decodeDir = dir === "decode" || dir === "decrypt" || dir === "dec";
     const inputEncKeys = /^(inputType|inputEncoding|inEncoding|srcEncoding|inputEnc|inputMode|msgMode|msgEnc|dataEnc|inputFormat|contentEnc|enc|input)$/i;
+    // 补充输入侧编码键：inEnc / decodeAs / plainEnc / cNEncoding / appendEnc 等此前未覆盖，
+    // 导致声明它们的算法（rabbit / aesKeyWrap / sm2KnownPlaintext / hashLengthExtension）在
+    // 非文本视图下被「视图解一次 + 算法再解一次」= 双重解码。仅对不走字节通道的算法让位：
+    // 声明 acceptsBytes 的算法由字节通道优先、视图安全，无需让位（否则会误关掉其 hex 视图）。
+    const extraInputEncKeys = /^(inEnc|decodeAs|plainEnc|c1Encoding|c2Encoding|c3Encoding|cipherFormat|appendEnc|appendEncoding)$/i;
+    const acceptsBytes = !!(op && op.acceptsBytes === true);
     const selfEncoded = opParams.find((x) => {
       if (!x) return false;
       const k = String(x.key);
-      return inputEncKeys.test(k) || (/^outEnc$/i.test(k) && decodeDir);
+      // 基础 13 键：acceptsBytes op 已由字节通道接管（视图可正常驱动），不再让位；
+      // 非 acceptsBytes op 仍让位（防双重解码）。
+      if (inputEncKeys.test(k)) return !acceptsBytes;
+      if (/^outEnc$/i.test(k) && decodeDir) return !acceptsBytes;
+      if (extraInputEncKeys.test(k)) return !acceptsBytes;
+      return false;
+    });
+    // 输出侧对称守卫：算法自带输出编码（outEnc 在 encode 方向 / outputFormat / outFormat / msgFormat / base64）
+    // 时，全局输出视图若再按 hex/base64 解释会把「已编码的文本」再编码一次 = 双编码。
+    // 此时输出视图强制文本，由算法自己决定输出表示。
+    const outEncKeys = /^(outEnc|outputEnc|outFormat|outputFormat|msgFormat|base64)$/i;
+    const selfEncodedOut = opParams.find((x) => {
+      if (!x) return false;
+      const k = String(x.key);
+      if (!outEncKeys.test(k)) return false;
+      // outEnc 在 decode 方向属输入承载，已在上面处理；此处只算 encode 方向
+      if (/^outEnc$/i.test(k) && decodeDir) return false;
+      // base64 是布尔开关，仅在开启时才算自带输出编码，避免过度限制视图
+      if (/^base64$/i.test(k) && !params.base64) return false;
+      return true;
     });
     if (stateScope === "input" && selfEncoded && viewSource === "toolbar" && normalizeViewChoice(viewRaw) !== "text") {
       viewRaw = "text";
       viewSource = "op-selfenc";
+    }
+    // 输出侧不再强制文本视图：op 返回 {text, bytes} 时由视图渲染 hex/base64；
+    // 仅返回文本的 op，非文本视图保持原文并给"不适用"提示（formatOutput 内已有，不会双编码）。
+    // 锁视图只用于输入侧：算法自带"域元素进制/码表"类编码时，文本↔字节视图语义不成立。
+    const lockParam = stateScope === "input" ? selfEncoded : null;
+    const nextLock = lockParam ? String(lockParam.label || lockParam.key || "") : "";
+    if (nextLock !== viewLockLabel) { viewLockLabel = nextLock; syncControls(); }
+    // 默认视图跟随 op 的默认编码（用户没手动选过视图时）：
+    // 解密默认 base64（密文习惯）、pcap 默认 hex、AES 加密输入默认文本……
+    // 否则一律 text 会把"默认 base64 输入"变成文本解释，语义就错了。
+    if (!viewUserSet && viewSource === "toolbar" && !(stateScope === "input" && selfEncoded)) {
+      const dirNow = (exec && exec.dir) || (typeof opts.getDir === "function" ? opts.getDir() : null);
+      const dv = defaultViewFor(op, stateScope, dirNow);
+      if (dv && VIEWS.includes(dv)) {
+        viewRaw = dv;
+        // UI 高亮与实际解析必须一致：默认推导结果同步回 state
+        if (state.view !== dv) { state.view = dv; syncControls(); }
+      }
     }
     // 位序只作为 bits 视图的子选项：只认 ioBitOrder，不认通用 bitOrder
     // （stegosaurus / zstegScan 等 op 的 bitOrder 是算法内部参数，不能挪作视图解释）。
@@ -572,7 +717,7 @@ export function attachIoCodingToolbar(area, opts = {}) {
       state.charset = normalizeCharsetChoice(patch.charset);
       if (!bomSupported(state.charset)) state.keepBom = false;
     }
-    if (patch.view != null) state.view = normalizeViewChoice(patch.view);
+    if (patch.view != null) { state.view = normalizeViewChoice(patch.view); viewUserSet = true; }
     if (patch.keepBom != null) state.keepBom = !!patch.keepBom;
     if (patch.bitOrder != null) state.bitOrder = normalizeBitOrder(patch.bitOrder);
     const nextDefaults = { charset: state.charset, view: state.view, keepBom: state.keepBom, bitOrder: state.bitOrder };
@@ -752,25 +897,14 @@ export function attachIoCodingToolbar(area, opts = {}) {
     ready: false,
     setCharset(label, o) { commit({ charset: label }, !(o && o.emit === false)); },
     setView(view, o) {
-      // Old drafts used binary/Base32 display modes. Migrate actual bytes to Hex;
-      // no invisible mode and no accidental reinterpretation of the old text.
-      if (view === "bits" || view === "base32") {
-        try {
-          const bytes = area._rawBytes || parseViewBytes(area.value, view, state.bitOrder);
-          area.value = bytesToView(bytes, "hex");
-          area._isFilePlaceholder = false;
-          commit({ view: "hex" }, false);
-        } catch (error) {
-          commit({ view: "text" }, false);
-          showError(error);
-        }
-        return;
-      }
+      // bits/base32 已由核心 bytesToView / viewToBytes 双向支持，输入输出都可直接切。
+      // 草稿恢复（restored）不算用户手选，否则会永久关闭"默认视图跟随 op 默认编码"。
+      if (!(o && o.restored)) viewUserSet = true;
       commit({ view }, !(o && o.emit === false));
     },
     setKeepBom(v, o) { commit({ keepBom: !!v }, !(o && o.emit === false)); },
     setBitOrder(v, o) { commit({ bitOrder: v }, !(o && o.emit === false)); },
-    getState() { return { ...state }; },
+    getState() { return { ...state, viewUserSet }; },
     resolveOptions,
     prepareInput,
     encodeBytes,

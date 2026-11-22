@@ -538,11 +538,19 @@ function encDecode(s, enc) {
   if (enc === "base64") { const bin = atob(s.replace(/\s/g, "")); const o = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) o[i] = bin.charCodeAt(i); return o; }
   return new TextEncoder().encode(s);
 }
-function encEncode(b, enc) {
+function encEncodeText(b, enc) {
   if (enc === "hex") return bytesToHex(b);
   if (enc === "base64") { let bin = ""; for (const x of b) bin += String.fromCharCode(x); return btoa(bin); }
   return new TextDecoder("utf-8").decode(b);
 }
+/** 统一输出契约：text 保持旧值，bytes 供全局输出视图渲染。 */
+function encEncode(bytes, enc) {
+  const t = encEncodeText(bytes, enc);
+  const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  if (t && typeof t === "object") return { ...t, bytes: t.bytes || b };
+  return { text: t, bytes: b };
+}
+
 /** 输入视图 auto 兜底：hex → base64 → UTF-8（原 enc 默认 hex，保持 hex 优先）。 */
 function encAutoDecode(s) {
   const raw = String(s == null ? "" : s);
@@ -649,7 +657,7 @@ register({
     { key: "outEnc", label: "输出编码", type: "select", default: "hex", options: ENC_OPTS },
   ],
   run: (text, p) => {
-    const data = rawBytesOrNull(p, text) || encDecode(text, p.dataEnc || "utf8");
+    const data = rawBytesOf(p) || encDecode(text, p.dataEnc || "utf8");
     const px = parseBigHex(p.pubX, "公钥 X"), py = parseBigHex(p.pubY, "公钥 Y");
     return encEncode(sm2Encrypt(data, px, py, null, p.format || "c1c3c2").cipher, p.outEnc || "hex");
   },
@@ -705,7 +713,7 @@ register({
     { key: "outEnc", label: "输出编码", type: "select", default: "hex", options: ENC_OPTS },
   ],
   run: (text, p) => {
-    const data = rawBytesOrNull(p, text) || encDecode(text, p.dataEnc || "utf8");
+    const data = rawBytesOf(p) || encDecode(text, p.dataEnc || "utf8");
     const d = parseBigHex(p.privKey, "私钥");
     const ida = encDecode(p.ida || "1234567812345678", "utf8");
     const px = p.pubX ? parseBigHex(p.pubX, "公钥 X") : null;
@@ -733,7 +741,7 @@ register({
     { key: "dataEnc", label: "输入编码", type: "select", default: "utf8", options: ENC_OPTS },
   ],
   run: (text, p) => {
-    const data = rawBytesOrNull(p, text) || encDecode(text, p.dataEnc || "utf8");
+    const data = rawBytesOf(p) || encDecode(text, p.dataEnc || "utf8");
     const px = parseBigHex(p.pubX, "公钥 X"), py = parseBigHex(p.pubY, "公钥 Y");
     const ida = encDecode(p.ida || "1234567812345678", "utf8");
     const r = parseBigHex(p.r, "r"), s = parseBigHex(p.s, "s");

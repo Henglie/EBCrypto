@@ -50,8 +50,19 @@ const MODE_OPTIONS = [
 // ============================================================
 // run 主入口：按 mode 分派到原实现（逐字节同输出）
 // ============================================================
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null，并归一化为 Uint8Array。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  if (ArrayBuffer.isView(b)) return b instanceof Uint8Array ? b : new Uint8Array(b.buffer, b.byteOffset, b.byteLength);
+  return new Uint8Array(b);
+}
+
 function stegoDetectRun(text, p = {}) {
   const mode = p.mode || "zwScan";
+ // 文件类 mode 共用：把 ArrayBuffer / DataView / 数组统一成 Uint8Array 再下传，
+ // 否则下游 `rawBytes.length` 为 undefined（ArrayBuffer）或长度 0（DataView）会退回文本层。
+  const rawBytes = rawBytesOf(p) ?? undefined;
   switch (mode) {
     case "zwScan": return zwScan(text, {});
     case "confusablesScan": return confusablesScan(text, {});
@@ -67,14 +78,14 @@ function stegoDetectRun(text, p = {}) {
     case "invisibleViz": return invisibleViz(text, {});
     case "confusablesSkeleton": return skeletonReport(text);
     case "stegoQuickScan":
-      return stegoQuickScan(text, { inputEnc: p.inputEnc, rawBytes: p.rawBytes });
+      return stegoQuickScan(text, { inputEnc: p.inputEnc, rawBytes });
     case "stegdetect":
-      return stegdetectRun(text, { comp: p.comp, sens: p.sens, rawBytes: p.rawBytes });
+      return stegdetectRun(text, { comp: p.comp, sens: p.sens, rawBytes });
     case "zstegScan":
       return zstegRun(text, {
         inputEnc: p.inputEnc, maxBit: p.maxBit, columnMajor: p.columnMajor,
         flagRegex: p.flagRegex, exportCombo: p.exportCombo,
-        exportMaxBytes: p.exportMaxBytes, rawBytes: p.rawBytes,
+        exportMaxBytes: p.exportMaxBytes, rawBytes,
       });
     default:
       return "未知检测模式：" + mode + "（可选：" + MODE_OPTIONS.map((o) => o.value).join(" / ") + "）";

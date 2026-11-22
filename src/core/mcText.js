@@ -576,8 +576,16 @@ function fmtEntryLine(e, flags) {
 // ============================================================
 // run
 // ============================================================
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null，并归一化为 Uint8Array。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 async function mcTextExtractRun(text, p = {}) {
-  if ((!text || !String(text).trim()) && !(p && p.rawBytes && p.rawBytes.length)) {
+  const rb = rawBytesOf(p);
+  if ((!text || !String(text).trim()) && !(rb && rb.length)) {
     return "（空输入）可直接拖入 Minecraft 世界存档 ZIP（如 file.zip），或单个 region/*.mca（Anvil）、" +
       ".dat/.nbt 文件；也可粘贴 hex/base64。" +
       "\nZIP 整包会自动解压并逐个扫描 level.dat / playerdata / region / advancements / stats。" +
@@ -586,10 +594,8 @@ async function mcTextExtractRun(text, p = {}) {
   }
   let bytes;
   try {
- // 拖入文件走 rawBytes 通道（acceptsBytes 约定）：直接用真字节，跳过 hex/base64 文本解析。
-    bytes = (p && p.rawBytes && p.rawBytes.length)
-      ? (p.rawBytes instanceof Uint8Array ? p.rawBytes : new Uint8Array(p.rawBytes))
-      : inputToBytes(text, p.inputEnc || "auto");
+ // 拖入文件 / hex·base64 视图走 rawBytes 通道（acceptsBytes 约定）：真字节无条件优先，跳过文本解析。
+    bytes = (rb && rb.length) ? rb : inputToBytes(text, p.inputEnc || "auto");
   } catch (e) {
     return "输入解析失败：" + (e && e.message ? e.message : String(e));
   }

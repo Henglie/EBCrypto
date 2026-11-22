@@ -11,7 +11,7 @@
  * what: string 一句话「这是什么」。通俗、口语化，别堆术语。
  * principle: string 原理/怎么工作。可多段（用 "\n\n" 分段）。
  * 行内数学公式用 $...$ 包裹（KaTeX 语法），如 "满足 $a x + b \\pmod{26}$"。
- * 行内代码/字面量用 `...`（反引号，会渲染成等宽小块）。
+ * 字面量用反引号；多行字面量用围栏代码块，原样显示。独立公式用 formulas 或正文独立的 $$...$$。
  * usage: string 怎么用「本工具这个功能」。操作步骤/参数含义/方向说明。
  * examples: Array<{ in:string, param?:string, out:string, desc?:string }>
  * 至少给一个能跑通的例子。in=输入，out=输出，param=参数(可选)，desc=旁注(可选)。
@@ -395,7 +395,8 @@ const EDU = Object.assign(
 import { ZH as INTEGRATED, HASH_VECTORS, BASE_NOTES, EXTRA_ALIASES, CRC_PARAMS } from "./edu/edu-integrated.js";
 for (const [id, [name, poly, init, reflect, xorout, out]] of Object.entries(CRC_PARAMS)) {
   EDU[id] = { ...EDU[id], what: `${name}：CRC族中的独立校验参数组，不是密码学哈希。`,
-    principle: `poly=0x${poly}, init=0x${init}, refin=refout=${reflect}, xorout=0x${xorout}。多项式写正常形式，反射实现不改变该标称值。`,
+    principle: `CRC 将位串视为 $\\mathrm{GF}(2)$ 上的多项式，用生成多项式做模 2 除法；此处列出正常形式的多项式低位值（省略最高项）。反射实现不改变该标称值。\n\n` +
+      ["```text", `poly=0x${poly}`, `init=0x${init}`, `refin=${reflect}`, `refout=${reflect}`, `xorout=0x${xorout}`, "```"].join("\n"),
     usage: "输入UTF-8文本，计算固定参数组的十六进制校验值。要换参数组请切换CRC档位；Adler-32不属于CRC族。",
     examples: [{ in: "123456789", out }], tips: ["CRC用于检错，不提供抗恶意篡改认证。CRC-64/ECMA-182不等同CRC-64/XZ。", "参考：https://reveng.sourceforge.io/crc-catalogue/all.htm"] };
 }
@@ -418,7 +419,7 @@ for (const [id, out] of Object.entries(HASH_VECTORS)) {
   const xof = id.startsWith("shake");
   EDU[id] = { ...EDU[id],
     what: `${id.toUpperCase()}：${xof ? "可扩展输出函数，不是固定长度摘要" : `${out.length * 4}位消息摘要${id === "sha3" ? "（默认256位，另有224/384/512）" : ""}`}。滑块只组织显示，各op独立；不包含HMAC/KDF。`,
-    principle: xof ? `FIPS 202海绵结构XOF。n位输出的通用碰撞强度至多min(${id === "shake128" ? 128 : 256}, n/2)，原像强度至多min(${id === "shake128" ? 128 : 256}, n)。输出变短会降低安全性；同输入的短输出是长输出前缀。` : id === "sha3" ? "FIPS 202，Keccak-f[1600]海绵结构与SHA-3域分离；不等同旧Keccak散列。" : id === "sha0" ? "1993 FIPS 180；与SHA-1的消息扩展旋转不同，已被替代。" : "FIPS 180系列分块迭代消息摘要；单向，不是可逆加密。SHA-384使用不同于SHA-512的初始值后截断，不是直接截取SHA-512摘要。",
+    principle: xof ? `FIPS 202 海绵结构 XOF。若输出 $n$ 位，通用碰撞强度至多 $\\min(${id === "shake128" ? 128 : 256}, n/2)$ 位，原像强度至多 $\\min(${id === "shake128" ? 128 : 256}, n)$ 位。同一输入的短输出是长输出前缀。` : id === "sha3" ? "FIPS 202，Keccak-f[1600]海绵结构与SHA-3域分离；不等同旧Keccak散列。" : id === "sha0" ? "1993 FIPS 180；与SHA-1的消息扩展旋转不同，已被替代。" : "FIPS 180系列分块迭代消息摘要；单向，不是可逆加密。SHA-384使用不同于SHA-512的初始值后截断，不是直接截取SHA-512摘要。",
     usage: xof ? "输入文本，选择输出字节数；以下例子固定32字节。" : "输入文本运行；SHA-0另支持inputType=hex；SHA-3位宽参数保持可见。",
     examples: [{ in: "abc", out, ...(xof ? {param: "输出32字节"} : id === "sha3" ? {param: "bits=256"} : {}) }],
     tips: ["SHA-0/SHA-1不用于新系统的抗碰撞安全用途；普通快速哈希不是口令存储KDF。", "资料：FIPS 180、FIPS 202；不要只凭摘要长度认定算法。"],

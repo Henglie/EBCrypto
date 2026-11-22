@@ -507,6 +507,13 @@ function rabbitDecryptSalted(salted, keyRaw, crackListText) {
   return `未命中：已尝试 ${candidates.length} 个口令 × 2 种变体，均未得到可读文本；可补充爆破候选口令，或检查密文完整性。`;
 }
 
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null。真字节优先于文本重解。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 // CyberChef Rabbit 同口径：16 字节 key（Hex/UTF8/Latin1/Base64）、可选 8 字节 IV、
 // Big=RFC 4503 方向（rfc 变体）/ Little=Crypto++ 兼容（standard 变体）、Input Raw/Hex、Output Raw/Hex。
 function rabbitCcDecodeBytes(raw, enc) {
@@ -620,14 +627,14 @@ function rabbitCcCrypt(text, p) {
   if (key.length !== 16) throw new Error(`Invalid key length: ${key.length} bytes (expected: 16)`);
   const iv = rabbitCcDecodeBytes(p.iv || "", p.ivEnc || "Hex");
   if (iv.length !== 0 && iv.length !== 8) throw new Error(`Invalid IV length: ${iv.length} bytes (expected: 0 or 8)`);
-  const data = rabbitCcDecodeBytes(text, p.inEnc || "Raw");
+  const data = rawBytesOf(p) || rabbitCcDecodeBytes(text, p.inEnc || "Raw");
   const ct = (p.endianness || "Big") === "Little"
     ? rabbitCryptVariant(data, key, iv, "standard")
     : rabbitCcBigCrypt(data, key, iv);
-  if ((p.outEnc || "Raw") === "Hex") return bytesToHex(ct).toLowerCase();
+  if ((p.outEnc || "Raw") === "Hex") return { text: bytesToHex(ct).toLowerCase(), bytes: ct };
   let out = "";
   for (const b of ct) out += String.fromCharCode(b);
-  return out;
+  return { text: out, bytes: ct };
 }
 
 function rabbitEncode(text, p) {
@@ -635,7 +642,7 @@ function rabbitEncode(text, p) {
   const variant = RABBIT_VARIANTS.includes(p && p.variant) ? p.variant : "legacy";
   const keyRaw = String((p && p.key) || "").trim();
   const ivRaw = String((p && p.iv) || "").trim();
-  const data = strToBytes(text);
+  const data = rawBytesOf(p) || strToBytes(text);
 
   if (RABBIT_HEX32.test(keyRaw)) {
     // 密钥模式：32 位 hex key（+ 可选 16 位 hex IV；IV 留空 = 无 IV 模式）
@@ -661,6 +668,19 @@ function rabbitDecode(text, p) {
   const ivRaw = String((p && p.iv) || "").trim();
   const raw = String(text).trim();
   const rawNoWs = raw.replace(/\s+/g, "");
+  const rawBytes = rawBytesOf(p);
+
+  // ⓪ 真字节通道（密钥模式）：hex/base64/文件视图已把输入解成字节，rawBytes 即密文本身，
+  //    不能再当文本按 hex 重解一次（否则「已解码文本 + inEnc=Hex」= 双重解码）。
+  if (rawBytes && RABBIT_HEX32.test(keyRaw)) {
+    const key = hexToBytes(keyRaw);
+    let iv = null;
+    if (ivRaw) {
+      iv = hexToBytes(ivRaw);
+      if (iv.length !== 8) throw new Error("Rabbit IV 须 8 字节（16 hex），实为 " + iv.length + " 字节");
+    }
+    return bytesToStr(rabbitCryptVariant(rawBytes, key, iv, variant));
+  }
 
   // ① CryptoJS 封装（base64「Salted__」）→ 口令全链（两变体并试 + 候选爆破）
   const salted = rabbitTryParseSalted(raw);
@@ -727,6 +747,7 @@ register({
   ],
   encode: rabbitEncode,
   decode: rabbitDecode,
+  acceptsBytes: true,
 });
 
 // ============================================================

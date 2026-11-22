@@ -8,6 +8,13 @@
 import { register } from "./registry.js";
 import { asmDisasmRun } from "./asmDisasm.js";
 
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null，并归一化为 Uint8Array。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 register({
   id: "disasmX86",
   cat: "forensic",
@@ -28,10 +35,11 @@ register({
     ] },
     { key: "base", label: "起始地址", type: "number", default: 0 },
   ],
+  acceptsBytes: true,
   async run(text, p) {
     return asmDisasmRun({
       text,
-      rawBytes: p.rawBytes,
+      rawBytes: rawBytesOf(p),
       params: { arch: p.arch, syntax: p.syntax, enc: p.enc, base: p.base },
     });
   },

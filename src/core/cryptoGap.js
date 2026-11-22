@@ -55,15 +55,25 @@ function decodeInput(text, enc) {
     default: return te(text);
   }
 }
-function encodeOutput(bytes, enc) {
+function encodeOutputText(bytes, enc) {
   switch (enc) {
     case "hex": return bytesToHex(bytes);
     case "base64": return bytesToB64(bytes);
     case "latin1": { let s = ""; for (const x of bytes) s += String.fromCharCode(x); return s; }
     case "utf8":
     default: return td(bytes);
-  }
+ 
+ }
 }
+/** 统一输出契约：text 保持旧值（配方/产物/文案不变），bytes 供全局输出视图渲染 hex/base64。 */
+function encodeOutput(bytes, enc) {
+  const t = encodeOutputText(bytes, enc);
+  const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  // 原分支可能已返回产物对象（含 text/files）：合并而非嵌套
+  if (t && typeof t === "object") return { ...t, bytes: t.bytes || b };
+  return { text: t, bytes: b };
+}
+
 function concatBytes(...arrs) {
   let n = 0;
   for (const a of arrs) n += a.length;

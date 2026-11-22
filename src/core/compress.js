@@ -431,7 +431,10 @@ function zlibWrap(bytes, type) {
 
 function makeCompressOps(format, label) {
   async function encode(text, p = {}) {
-    const bytes = te(text);
+ // 拖入文件走 rawBytes 通道（acceptsBytes 约定）：压缩真字节，而非框内占位文本。
+    const bytes = (p && p.rawBytes != null)
+      ? (p.rawBytes instanceof Uint8Array ? p.rawBytes : new Uint8Array(p.rawBytes))
+      : te(text);
     const type = p.compressionType || "Dynamic Huffman Coding";
     if (!["Dynamic Huffman Coding", "Fixed Huffman Coding", "None (Store)"].includes(type)) {
       throw new Error("未知 Compression type：" + type);

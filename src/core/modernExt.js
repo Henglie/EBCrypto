@@ -67,7 +67,7 @@ function decodeInput(text, enc) {
     default: return te(text);
   }
 }
-function encodeOutput(bytes, enc) {
+function encodeOutputText(bytes, enc) {
   switch (enc) {
     case "hex": return bytesToHex(bytes);
     case "base64": return bytesToB64(bytes);
@@ -76,6 +76,14 @@ function encodeOutput(bytes, enc) {
     default: return td(bytes);
   }
 }
+/** 统一输出契约：text 保持旧值，bytes 供全局输出视图渲染。 */
+function encodeOutput(bytes, enc) {
+  const t = encodeOutputText(bytes, enc);
+  const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  if (t && typeof t === "object") return { ...t, bytes: t.bytes || b };
+  return { text: t, bytes: b };
+}
+
 
 // ============================================================
 // 32 位整数运算工具
@@ -1387,12 +1395,12 @@ function makeStreamCipherOp(fn, keyHint, nonceHint, integerNonceLen = 8) {
 // xorStrings（多进制循环异或，明文/密钥短侧循环补齐，自反）
 {
   const encode = (text, p) => {
-    const data = rawBytesOrNull(p, text) || decodeInput(text, p.inEnc || "utf8");
+    const data = rawBytesOf(p) || decodeInput(text, p.inEnc || "utf8");
     const key = decodeInput(p.key || "", p.keyEnc || "utf8");
     return encodeOutput(xorExtend(data, key), p.outEnc || "hex");
   };
   const decode = (text, p) => {
-    const data = rawBytesOrNull(p, text.trim()) || decodeInput(text.trim(), p.outEnc || "hex");
+    const data = rawBytesOf(p) || decodeInput(text.trim(), p.outEnc || "hex");
     const key = decodeInput(p.key || "", p.keyEnc || "utf8");
     const out = xorExtend(data, key);
     const outEnc = p.inEnc || "utf8";

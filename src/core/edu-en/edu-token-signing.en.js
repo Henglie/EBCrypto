@@ -21,6 +21,13 @@ export default {
     examples: [{ in: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIn0.Q6CM1qIz2WTgTlhMzpFL8jI8xbu9FFfj5DY_bGVY98Y", param: "key=secret", out: "✓ 签名有效", desc: "Valid HS256 signature" }],
     tips: ["Use the matching public key for asymmetric algorithms.", "Decoded content is still shown for an invalid signature; inspect the verdict."], aka: jwsAliases,
   },
+  jweCipher: {
+    what: "Encrypt and decrypt RFC 7516 compact JWE with `dir` and `A256GCM`.",
+    principle: "The Base64URL-encoded protected header is AES-GCM associated data. The `dir` algorithm uses the content encryption key directly, without wrapping it. The key, IV, and authentication tag are $256$, $96$, and $128$ bits, respectively.\n\n```text\nprotected_header..iv.ciphertext.tag\n```",
+    usage: "To encrypt, enter plaintext, a 32-byte hexadecimal `cek`, and optionally `extraHeader` JSON. Download `token.jwe`. To decrypt, supply the complete token and the original key; authentication precedes plaintext output.",
+    examples: [{ in: "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..2Iak9XKWM6MiSarF.w8fySw55EZYJdJiH4AQ.9bfr-REJvX5YjKuoYyCE_w", param: "cek=606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f", out: '=== JWE 解密成功（dir + A256GCM）===\nheader: {"alg":"dir","enc":"A256GCM"}\n\nattack at dawn', desc: "The exact output includes the implementation’s status line and the decoded header.", run: { dir: "decode", params: { cek: "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f" } } }],
+    tips: ["Never reuse an IV under the same key. Encryption generates a fresh random IV.", "Key transport such as `RSA-OAEP` is outside this operation; JWS signs rather than encrypts."], aka: jweAliases,
+  },
   jweEncrypt: {
     what: "Encrypt with compact JWE dir+A256GCM and a 32-byte hexadecimal CEK.",
     principle: "RFC 7516 uses five segments: protected_header.encrypted_key.iv.ciphertext.tag. In direct mode encrypted_key is empty. The encoded protected header is GCM AAD; IV and tag are 12 and 16 bytes. Extra headers must not override alg=dir or enc=A256GCM.",

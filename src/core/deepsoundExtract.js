@@ -25,6 +25,13 @@ import { inputToBytes } from "./compress.js";
 import { aesEncrypt, aesDecrypt } from "./modern.js";
 import { checkLimit, withLimit } from "./limitGuard.js";
 
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null，并归一化为 Uint8Array。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 const HEAD_SCAN_LIMIT = 352800;
 const HEAD_CARRIER = 104;      // 头部载体字节数（26 秘密字节 × mode4）
 const PLAIN_HEAD_CARRIER = 24; // 明文头有效载体（6 秘密字节 × mode4）
@@ -334,9 +341,8 @@ function concatBytes(parts) {
 
 // ============ op run 包装 ============
 async function deepsoundRun(text, p) {
-  const bytes = (p && p.rawBytes && p.rawBytes.length)
-    ? (p.rawBytes instanceof Uint8Array ? p.rawBytes : new Uint8Array(p.rawBytes))
-    : inputToBytes(text, p);
+  // 真字节无条件优先：rawBytes 归一化后直接用（普通数组 / ArrayBuffer / TypedArray 都吃）
+  const bytes = rawBytesOf(p) || inputToBytes(text, p);
   const password = String((p && p.password) || "");
   const a = await extractDeepSound(bytes, password, p);
 

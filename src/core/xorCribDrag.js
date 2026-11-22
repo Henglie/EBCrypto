@@ -74,19 +74,6 @@ function rawBytesOf(p) {
   return b instanceof Uint8Array ? b : new Uint8Array(b);
 }
 
-/** 视图 text 模式字节与文本同构时让位给原文本层；真字节（hex/base64 视图、文件）原样优先。 */
-function rawBytesOrNull(p, text) {
-  const b = rawBytesOf(p);
-  if (!b) return null;
-  const t = new TextEncoder().encode(String(text == null ? "" : text));
-  if (b.length === t.length) {
-    let same = true;
-    for (let i = 0; i < b.length; i++) if (b[i] !== t[i]) { same = false; break; }
-    if (same) return null;
-  }
-  return b;
-}
-
 // ============================================================
 // cribDrag：核心算法
 // ============================================================
@@ -138,7 +125,7 @@ function xorCribDragRun(text, p) {
 
   let cipherBytes;
   try {
-    cipherBytes = rawBytesOrNull(p, text) || parseInput(text, inputEnc);
+    cipherBytes = rawBytesOf(p) || parseInput(text, inputEnc);
   } catch (err) {
     lines.push("✗ 密文解析失败：" + err.message);
     return lines.join("\n");

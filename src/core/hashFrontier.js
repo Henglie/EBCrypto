@@ -59,7 +59,7 @@ function rawBytesOrNull(p, text) {
 
 /** text/hex 双编码输入。hex 非法直接抛错（项目惯例）。 */
 function inputBytes(text, p) {
-  const raw = rawBytesOrNull(p, text);
+  const raw = rawBytesOf(p);
   if (raw) return raw;
   const mode = (p && p.inputType) || "text";
   if (mode === "hex") {

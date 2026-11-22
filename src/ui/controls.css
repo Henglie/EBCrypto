@@ -110,3 +110,20 @@ select:not([multiple]):focus-visible { outline: 2px solid var(--primary); outlin
 /* 紧凑场景（I/O 工具栏）保留原高度，其余外观仍由上面的统一规则决定 */
 select.io-coding-select { height: 36px; min-height: 36px; }
 @media (pointer: coarse) { select.io-coding-select { height: 44px; min-height: 44px; } }
+/* 第 4 位"更多视图"：按钮显示当前选中项并高亮，点开才展开列表（escaped 也在列表内） */
+.io-coding-seg { position: relative; }
+.io-coding-view-more { white-space: nowrap; }
+.io-coding-more-menu {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 40;
+  display: flex; flex-direction: column; min-width: 132px; padding: 4px;
+  background: var(--surface, #fff); color: var(--text, inherit);
+  border: 1px solid var(--border, #d0d0d0); border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .16);
+}
+.io-coding-more-menu[hidden] { display: none; }
+.io-coding-more-item {
+  text-align: left; padding: 6px 10px; background: transparent; border: 0;
+  border-radius: 6px; cursor: pointer; font-size: var(--fs-xs); color: inherit;
+}
+.io-coding-more-item:hover { background: var(--hover, rgba(0, 0, 0, .06)); }
+.io-coding-more-item.on { font-weight: 600; }

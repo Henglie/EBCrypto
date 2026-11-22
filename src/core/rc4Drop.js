@@ -107,7 +107,7 @@ function decodeInput(text, enc) {
     default: return te(text);
   }
 }
-function encodeOutput(bytes, enc) {
+function encodeOutputText(bytes, enc) {
   switch (enc) {
     case "hex": return bytesToHex(bytes);
     case "base64": return bytesToB64(bytes);
@@ -126,8 +126,18 @@ function encodeOutput(bytes, enc) {
     }
     case "utf8":
     default: return td(bytes);
-  }
+ 
+ }
 }
+/** 统一输出契约：text 保持旧值（配方/产物/文案不变），bytes 供全局输出视图渲染 hex/base64。 */
+function encodeOutput(bytes, enc) {
+  const t = encodeOutputText(bytes, enc);
+  const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  // 原分支可能已返回产物对象（含 text/files）：合并而非嵌套
+  if (t && typeof t === "object") return { ...t, bytes: t.bytes || b };
+  return { text: t, bytes: b };
+}
+
 
 // ---- RC4 内核 ----
 /**
@@ -249,18 +259,18 @@ register({
     const key = decodeInput(p.key || "", p.keyEnc || "utf8");
     if (mode === "cipherSaber2") {
       const iv = decodeInput(p.iv || "", p.ivEnc || "utf8");
-      const body = cipherSaber2Crypt(rawBytesOrNull(p, text) || te(text), key, iv, Number((p && p.ksaRounds) || 20), false);
+      const body = cipherSaber2Crypt(rawBytesOf(p) || te(text), key, iv, Number((p && p.ksaRounds) || 20), false);
       const blob = new Uint8Array(iv.length + body.length);
       blob.set(iv, 0);
       blob.set(body, iv.length);
       return encodeOutput(blob, p.outEnc || "base64");
     }
-    return encodeOutput(rc4DropCrypt(rawBytesOrNull(p, text) || decodeInput(text, (p && p.inEnc) || "utf8"), key, Number((p && p.drop) || 0)), p.outEnc || "base64");
+    return encodeOutput(rc4DropCrypt(rawBytesOf(p) || decodeInput(text, (p && p.inEnc) || "utf8"), key, Number((p && p.drop) || 0)), p.outEnc || "base64");
   },
   decode: (text, p) => {
     const mode = (p && p.mode) || "drop";
     const key = decodeInput(p.key || "", p.keyEnc || "utf8");
-    const blob = rawBytesOrNull(p, String(text).trim()) || decodeInput(String(text).trim(), (p && p.inEnc) || p.outEnc || "base64");
+    const blob = rawBytesOf(p) || decodeInput(String(text).trim(), (p && p.inEnc) || p.outEnc || "base64");
     if (mode === "cipherSaber2") {
       if (blob.length < 10) throw new Error(`CipherSaber-2：密文不足 10 字节，读不到 IV（当前 ${blob.length}）。`);
       const iv = blob.subarray(0, 10);

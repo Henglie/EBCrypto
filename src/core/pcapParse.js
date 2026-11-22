@@ -1056,14 +1056,18 @@ export function pcapParseRun(text, p = {}) {
   const maxPackets = parseInt(p.maxPackets, 10) || 50;
   const detail = p.detail || "summary";
 
-  if ((!text || !String(text).trim()) && !(p && p.rawBytes && p.rawBytes.length)) return "（空输入）请输入 pcap/pcapng 文件的 hex 或 base64 编码。";
+  // 归一化 rawBytes：ArrayBuffer 无 .length、DataView 直接包会得 0 字节，必须分流
+  const _rbRaw = p && p.rawBytes;
+  const _rb = _rbRaw == null ? null
+    : _rbRaw instanceof Uint8Array ? _rbRaw
+    : ArrayBuffer.isView(_rbRaw) ? new Uint8Array(_rbRaw.buffer, _rbRaw.byteOffset, _rbRaw.byteLength)
+    : new Uint8Array(_rbRaw);
+  if ((!text || !String(text).trim()) && !(_rb && _rb.length)) return "（空输入）请输入 pcap/pcapng 文件的 hex 或 base64 编码。";
 
   let bytes;
   try {
  // 拖入文件走 rawBytes 通道（acceptsBytes 约定）：直接用真字节，跳过 hex/base64 文本解析。
-    bytes = (p && p.rawBytes && p.rawBytes.length)
-      ? (p.rawBytes instanceof Uint8Array ? p.rawBytes : new Uint8Array(p.rawBytes))
-      : inputToBytes(text, enc);
+    bytes = (_rb && _rb.length) ? _rb : inputToBytes(text, enc);
   } catch (e) {
     return "输入解析失败：" + (e && e.message ? e.message : String(e));
   }

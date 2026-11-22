@@ -74,14 +74,14 @@ try {
     const bounds = node.getBoundingClientRect(), css = getComputedStyle(node);
     return Math.abs(bounds.width - bounds.height) < 1 && css.borderRadius === '50%' && css.backgroundColor !== 'rgba(0, 0, 0, 0)';
   }), 'Theme hover background is a circle');
-  // Both old draft representations migrate to a visible Hex view without changing bytes.
-  for (const [view, text, order, expected] of [['bits','10000010','lsb','41'],['base32','IE======','msb','41']]) {
+  // bits/base32 现在是正式视图（不再是旧草稿迁移）：切换后字节不变、视图即所选。
+  for (const [view, text, order, expected] of [['bits','10000010','lsb','10000010'],['base32','IE======','msb','IE======']]) {
     const result = await page.locator('#ioIn').evaluate((node, [view,text,order]) => {
       node.value = text; const ctl = node.__ioCoding;
       ctl.setBitOrder(order, { emit: false }); ctl.setView(view, { emit: false });
       return { text: node.value, view: ctl.getState().view };
     }, [view,text,order]);
-    check(result.text === expected && result.view === 'hex', `${view}: exact old-draft migration`);
+    check(result.text === expected && result.view === view, `${view}: real view keeps bytes`);
   }
   await page.locator('.ci-edit-btn').click(); await page.locator('.ci-editor-wrap .cm-content').waitFor();
   await page.waitForTimeout(600);

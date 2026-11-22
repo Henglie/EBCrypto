@@ -32,6 +32,13 @@
 import { register } from "./registry.js";
 import { inputToBytes } from "./compress.js";
 
+/** rawBytes 归一化：Uint8Array / ArrayBuffer / 数组 → Uint8Array；无字节返回 null。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 // ============ 基础工具 ============
 
 const le16 = (b, o) => (b.length >= o + 2 ? b[o] | (b[o + 1] << 8) : null);
@@ -116,11 +123,12 @@ export function parsePeInfo(data) {
 
 function peInfoRun(text, p) {
   const pp = p || {};
-  if ((!text || !String(text).trim()) && !(pp.rawBytes && pp.rawBytes.length)) {
+  const rb = rawBytesOf(pp);
+  if ((!text || !String(text).trim()) && !(rb && rb.length)) {
     return "（空输入）请拖入 PE 可执行文件（.exe/.dll）或粘贴 hex / base64 字节。";
   }
   let data;
-  try { data = inputToBytes(text, pp); }
+  try { data = (rb && rb.length) ? rb : inputToBytes(text, pp); }
   catch (e) { return "输入解析失败：" + (e && e.message ? e.message : String(e)); }
 
   const info = parsePeInfo(data);

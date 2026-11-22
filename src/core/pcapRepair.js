@@ -35,6 +35,13 @@
  */
 import { register } from "./registry.js";
 
+/** rawBytes 归一化：Uint8Array / ArrayBuffer / 数组 → Uint8Array；无字节返回 null。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 // ---- 输入 → 字节（hex / base64 / auto） ----
 function isHexStr(s) { return /^[0-9a-fA-F]+$/.test(s) && s.length % 2 === 0 && s.length >= 2; }
 function hexToBytes(s) {
@@ -357,9 +364,8 @@ function pcapRepairRun(text, p) {
   let b;
   try {
  // 拖入文件走 rawBytes 通道（acceptsBytes 约定）：直接用真字节，跳过 hex/base64 文本解析。
-    b = (p && p.rawBytes && p.rawBytes.length)
-      ? (p.rawBytes instanceof Uint8Array ? p.rawBytes : new Uint8Array(p.rawBytes))
-      : parseInput(text, enc);
+    const rb = rawBytesOf(p);
+    b = (rb && rb.length) ? rb : parseInput(text, enc);
   }
   catch (e) { return "✗ 输入解析失败: " + (e.message || String(e)); }
 

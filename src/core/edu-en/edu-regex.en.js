@@ -8,7 +8,7 @@ export default {
   regexTool: {
     what:
       "Extract or replace text with a regular expression: extract pulls out the whole match, the n-th capture group or all groups, optionally deduplicated and first-only, joined one per line; " +
-      "replace rewrites matches with a template using $1..$9 / $& / $$. It is not another regex engine — it exposes the native JS RegExp safely as a chainable op. " +
+      "replace rewrites matches with a template using `$1` through `$9`, `$&`, or `$$`. It is not another regex engine — it exposes the native JS RegExp safely as a chainable op. " +
       "The difference that matters: every pattern passes a structural whitelist **before compilation**, so patterns that cause catastrophic backtracking (ReDoS) never run.",
     principle:
       "**Why a whitelist**: JS `RegExp.exec` is synchronous and uninterruptible — once exponential backtracking starts, the main thread can only wait; `setTimeout`/`AbortSignal` cannot break in. " +

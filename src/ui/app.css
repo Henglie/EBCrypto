@@ -493,6 +493,7 @@ label.switch,
 .et-btn:active { transform: scale(.9); }
 .et-btn .msym { font-size: 18px; }
 
+:root { --io-height-scale: 1.2; }
 .io-area {
  /* flex:1 = flex-basis:0%，flexbox 用 basis+grow 覆盖 resize 写入的
      height，拖拽被弹回 → 看似「拉不动」。父 .io-pane 高度本就随内容（无固定高），
@@ -502,7 +503,7 @@ label.switch,
      内容把框越撑越高。改固定 height（作默认高度）+ overflow:auto：
      内容溢出时框内滚动、高度不变，resize:vertical 仍让用户手动拉。min-height 作最小下限。 */
   flex: 0 0 auto;
-  height: 240px;
+  height: calc(240px * var(--io-height-scale));
   min-height: 120px;
   padding: var(--sp-4);
   background: var(--field-bg);
@@ -1209,6 +1210,7 @@ button.ok-expand:focus-visible { outline: 2px solid var(--primary); outline-offs
 }
 .edu-paras { display: flex; flex-direction: column; gap: var(--sp-2); }
 .edu-para { margin: 0; }
+.edu-md-list { margin: 0; padding-inline-start: var(--sp-5); font-size: var(--fs-md); line-height: 1.75; }
 /* 允许科普正文直接写 HTML：常见标签给基础排版（.edu-para 行内 HTML / .edu-rich 行内富文本 / .edu-rich-block 整段块级 HTML 共用一套） */
 .edu-para, .edu-rich, .edu-rich-block { font-size: var(--fs-md); line-height: 1.75; }
 .edu-rich-block { margin: var(--sp-1) 0; }
@@ -1246,6 +1248,21 @@ button.ok-expand:focus-visible { outline: 2px solid var(--primary); outline-offs
   background: var(--surface-2); border: 1px solid var(--outline-var); border-radius: var(--r-md);
   padding: var(--sp-3); overflow-x: auto; font-family: var(--mono); font-size: var(--fs-base); line-height: 1.6;
 }
+.edu-code-block {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  overflow-x: auto;
+  background: var(--surface-3);
+  border: 1px solid var(--outline-var);
+  border-radius: var(--r-sm);
+  font: var(--fs-base)/1.6 var(--mono);
+  white-space: pre;
+}
+.edu-code-block code { font: inherit; white-space: inherit; word-break: normal; }
+.edu-ex-block { flex: 1 1 12em; }
 
 /* 行内等宽码块 / 行内公式 */
 .edu-code {
@@ -2018,7 +2035,7 @@ html.reduce-motion *, html.reduce-motion *::before, html.reduce-motion *::after 
   .param > .switch + label:not(.switch) { flex: 0 1 auto; white-space: nowrap; }
   .param input[type="text"], .param input[type="number"], .param select { flex: 1 1 100%; }
   .stepper { flex: 1 1 100%; }
-  .io-area { height: 160px; min-height: 80px; }
+  .io-area { height: calc(160px * var(--io-height-scale)); min-height: 80px; }
   .dir-seg { flex-wrap: wrap; }
   /* IO 面板头：工具按钮过多时换行，避免 320px 宽下 7 个按钮挤出视口 */
   .io-pane-head { flex-wrap: wrap; height: auto; row-gap: 4px; }
@@ -2054,7 +2071,7 @@ html.reduce-motion *, html.reduce-motion *::before, html.reduce-motion *::after 
 /* ============ 低高窗口（<640px 高）：弹窗缩高 + 内部滚动，防 max-height 叠加溢出 ============ */
 @media (max-height: 640px) {
   /* IO 框默认高再降一档，低窗口下少滚 */
-  .io-area { height: 120px; min-height: 56px; }
+  .io-area { height: calc(120px * var(--io-height-scale)); min-height: 56px; }
   .io-area.io-field-area { min-height: 48px; }
   /* 语言菜单 / 搜索下拉：低窗更高占比，内部滚 */
   .lang-menu { max-height: 92vh; }

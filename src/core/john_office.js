@@ -49,6 +49,14 @@ function u32le(b, i) {
   return ((b[i]) | (b[i + 1] << 8) | (b[i + 2] << 16) | (b[i + 3] * 0x1000000)) >>> 0;
 }
 
+// 拖入文件走 rawBytes 通道（acceptsBytes 约定）：统一归一化为 Uint8Array。
+// Uint8Array / ArrayBuffer / 普通数组都能用；无字节返回 null。
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 // ---- hex 编码 ----
 function toHex(bytes, start, end) {
   let s = "";
@@ -659,13 +667,14 @@ function scanRawBytes(bytes) {
  */
 function office2johnRun(text, p = {}) {
   const enc = p.inputEnc || "auto";
+  const rb = rawBytesOf(p);
 
-  if ((!text || !String(text).trim()) && !(p && p.rawBytes && p.rawBytes.length)) return "（空输入）";
+  if ((!text || !String(text).trim()) && !(rb && rb.length)) return "（空输入）";
   let bytes;
   try {
  // 拖入文件走 rawBytes 通道（acceptsBytes 约定）：直接用真字节，跳过 hex/base64 文本解析。
-    bytes = (p && p.rawBytes && p.rawBytes.length)
-      ? (p.rawBytes instanceof Uint8Array ? p.rawBytes : new Uint8Array(p.rawBytes))
+    bytes = (rb && rb.length)
+      ? rb
       : inputToBytes(text, enc);
   } catch (e) {
     return "输入解析失败：" + (e && e.message ? e.message : String(e));

@@ -24,6 +24,14 @@ import { register } from "./registry.js";
 import { inputToBytes } from "./pcapParse.js";
 import { decompressAndParseNBT } from "./mcSave.js";
 
+// 拖入文件走 rawBytes 通道（acceptsBytes 约定）：统一归一化为 Uint8Array。
+// Uint8Array / ArrayBuffer / 普通数组都能用；无字节返回 null。
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 // tag type → 名（与 mcSave.js 一致；下标即 tag id）
 const TAG_NAMES = [
   "End", "Byte", "Short", "Int", "Long", "Float", "Double",
@@ -170,7 +178,8 @@ function dumpNode(t, key, v, indent, depth, opts, lines, counter) {
 // run
 // ============================================================
 async function mcNbtViewRun(text, p = {}) {
-  if ((!text || !String(text).trim()) && !(p && p.rawBytes && p.rawBytes.length)) {
+  const rb = rawBytesOf(p);
+  if ((!text || !String(text).trim()) && !(rb && rb.length)) {
     return "（空输入）请粘贴 NBT 文件（level.dat / *.dat / playerdata / *.nbt 等）的 hex 或 base64 编码。" +
       "\n支持 gzip / zlib / 裸 NBT 三种存储；解压后完整转储为可读文本树。";
   }
@@ -178,8 +187,8 @@ async function mcNbtViewRun(text, p = {}) {
   let bytes;
   try {
  // 拖入文件走 rawBytes 通道（acceptsBytes 约定）：直接用真字节，跳过 hex/base64 文本解析。
-    bytes = (p && p.rawBytes && p.rawBytes.length)
-      ? (p.rawBytes instanceof Uint8Array ? p.rawBytes : new Uint8Array(p.rawBytes))
+    bytes = (rb && rb.length)
+      ? rb
       : inputToBytes(text, p.inputEnc || "auto");
   } catch (e) {
     return "输入解析失败：" + (e && e.message ? e.message : String(e));

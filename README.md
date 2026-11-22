@@ -883,8 +883,7 @@ public/
 | bb84Qkd | BB84 量子密钥分发仿真 | BB84 协议教学仿真（Bennett-Brassard 1984 / Gisin et al. 2002）：随机基矢发送-测量 → 基矢比对筛密 → 抽样估误码率检出窃听 → 剩余为最终密钥。支持信道误码率、Eve 截获-重发窃听率、可复现种子。Eve 全拦时筛后误码率 ≈ 25% |
 | jwsSign | JWS 签发 | JWS 签发（RFC 7515 compact）：HS256/384/512 对称、RS256（RSA PKCS#1 v1.5）、ES256（P-256）。header/payload JSON + 密钥 → JWS；产物 token.jws。RFC 7515 A.2.1 官方向量逐字验证 |
 | jwsVerify | JWS 验签 | JWS 验签（RFC 7515 compact）：重算签名逐字节比对，输出合法/不合法 + payload + header 全字段 |
-| jweEncrypt | JWE 加密 | JWE 加密（RFC 7516 compact）：dir+AES-256-GCM（alg=dir, enc=A256GCM）——CEK 直接给 32B hex；五段输出，第二段为空。额外 header 不得更改 alg/enc |
-| jweDecrypt | JWE 解密 | JWE 解密（RFC 7516 compact，dir+A256GCM）：重算 GCM 认证标签，输出明文 + header 全字段；篡改任一段必拒 |
+| jweCipher | JWE 加解密 | RFC 7516 紧凑格式，支持 `dir` + `A256GCM`。输入 32 字节十六进制内容加密密钥；加密生成 `token.jwe`，解密先认证再输出头部与明文。旧 `jweEncrypt` / `jweDecrypt` 调用仍兼容。 |
 | pasetoV4Sign | PASETO v4 签发（public） | PASETO v4.public 签发（协议规范 §4.1，Ed25519）：payload JSON + Ed25519 私钥 hex（64B 种子‖公钥）+ 可选 footer/implicit → v4.public token。v4.local（XChaCha20）暂不支持 |
 | pasetoV4Verify | PASETO v4 验签（public） | PASETO v4.public 验签：token + Ed25519 公钥（32B hex）→ 合法/不合法 + payload + footer；PAE 域分离防拼接（协议规范 §4.1） |
 | shamir | Shamir 秘密共享 | Shamir's Secret Sharing（GF(2^8)）：encode 把秘密拆成 n 份分片（阈值 k），decode 用任意 ≥k 份还原。少于 k 份无法得到秘密任何信息（信息论安全）。分片格式：每行 x:hex。 |

@@ -333,15 +333,22 @@ function buildEthernetPcap(ethFrames) {
 // ============================================================
 // run
 // ============================================================
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null，并归一化为 Uint8Array。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 function wpaDecryptRun(text, p = {}) {
-  if ((!text || !String(text).trim()) && !(p && p.rawBytes && p.rawBytes.length)) {
+  const rb = rawBytesOf(p);
+  if ((!text || !String(text).trim()) && !(rb && rb.length)) {
     return "（空输入）请输入 802.11 捕获（radiotap linktype 127 或裸 802.11 linktype 105）的 pcap/pcapng。";
   }
   let bytes;
   try {
-    bytes = (p && p.rawBytes && p.rawBytes.length)
-      ? (p.rawBytes instanceof Uint8Array ? p.rawBytes : new Uint8Array(p.rawBytes))
-      : inputToBytes(text, p.inputEnc || "auto");
+ // 拖入文件 / hex·base64 视图走 rawBytes 通道（acceptsBytes 约定）：真字节无条件优先，跳过文本解析。
+    bytes = (rb && rb.length) ? rb : inputToBytes(text, p.inputEnc || "auto");
   } catch (e) {
     return "输入解析失败：" + (e && e.message ? e.message : String(e));
   }

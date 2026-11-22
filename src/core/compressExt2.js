@@ -103,7 +103,7 @@ function rleRuns(chars) {
 function rleEncode(text, p) {
   const fmt = (p && p.fmt) || "countFirst";
   const t = String(text ?? "");
-  const raw = rawBytesOrNull(p, t);
+  const raw = rawBytesOf(p);
   if (fmt === "packed") {
     const bytes = raw || te(t);
     const out = [];
@@ -143,7 +143,7 @@ function rleDecode(text, p) {
   const fmt = (p && p.fmt) || "countFirst";
   const countMode = (p && p.countMode) || "var";
   const digits = Math.max(1, Math.min(4, Number((p && p.fixedDigits) || 2) | 0));
-  const raw = rawBytesOrNull(p, text);
+  const raw = rawBytesOf(p);
   if (fmt === "packed") {
     // 打包式只认 hex/base64（不给 UTF-8 兜底：二进制格式喂文本只会产出静默垃圾）；视图真字节优先
     const enc = (p && p.inputEnc) || "auto";
@@ -501,7 +501,7 @@ const bytesToHexLower = (arr) => Array.from(arr, (x) => x.toString(16).padStart(
 
 function lzwEncode(text, p) {
   const mode = (p && p.mode) || "gif";
-  const bytes = rawBytesOrNull(p, String(text ?? "")) || te(String(text ?? ""));
+  const bytes = rawBytesOf(p) || te(String(text ?? ""));
   if (mode === "tiff") return bytesToHexLower(lzwEncodeTiffCore(bytes));
   if (mode === "fixed") {
     const width = Math.max(9, Math.min(16, Number((p && p.fixedBits) || 12) | 0));
@@ -519,7 +519,7 @@ function lzwDecode(text, p) {
   const mode = (p && p.mode) || "gif";
   let bytes;
   try {
-    bytes = rawBytesOrNull(p, text) || inputToBytes(text, p && p.rawBytes != null ? { ...p, rawBytes: null } : p);
+    bytes = rawBytesOf(p) || inputToBytes(text, p && p.rawBytes != null ? { ...p, rawBytes: null } : p);
   } catch {
     throw new Error("LZW：输入不是合法 hex/base64（应为编码输出的 hex 位流）。");
   }
@@ -1164,8 +1164,8 @@ function lz4CompressRun(text, p) {
   const limitParams = lz4CheckCompressBudget(bytes.length, p);
   const block = fmt === "frame" ? lz4CompressFrame(bytes, limitParams) : Uint8Array.from(lz4CompressBlock(bytes));
   const outEnc = (p && p.outEnc) || "hex";
-  if (outEnc === "base64") return bytesToB64Str(block);
-  if (outEnc === "hex") return bytesToHexStr(block);
+  if (outEnc === "base64") return { text: bytesToB64Str(block), bytes: block };
+  if (outEnc === "hex") return { text: bytesToHexStr(block), bytes: block };
   throw new Error(`LZ4 压缩：未知输出编码 ${JSON.stringify(outEnc)}，仅支持 hex / base64`);
 }
 
@@ -1251,8 +1251,9 @@ register({
     const out = lz4CompressFrame(bytes, p);
     const text = p.outEnc === "base64" ? bytesToB64Str(out) : bytesToHexStr(out);
     if (p.toFile) return { text: "(LZ4 Frame 压缩成功，" + out.length + " 字节，已提供 .lz4 文件)\n" + text,
+      bytes: out,
       files: [{ name: "compressed.lz4", mime: "application/octet-stream", bytes: out }] };
-    return text;
+    return { text, bytes: out };
   },
 });
 
@@ -1618,7 +1619,7 @@ function bz2Decompress(bytes, params) {
 function bzip2DecRun(text, p) {
   let bytes;
   try {
-    bytes = rawBytesOrNull(p, text) || inputToBytes(text, p && p.rawBytes != null ? { ...p, rawBytes: null } : p);
+    bytes = rawBytesOf(p) || inputToBytes(text, p && p.rawBytes != null ? { ...p, rawBytes: null } : p);
   } catch {
     throw new Error("bzip2：输入不是合法 hex/base64（应以 425a68… 即 BZh 开头）。");
   }

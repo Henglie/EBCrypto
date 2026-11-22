@@ -242,7 +242,8 @@ const EDU_EN = Object.assign(
 import { EN as INTEGRATED, HASH_VECTORS, BASE_NOTES, EXTRA_ALIASES, CRC_PARAMS } from "./edu/edu-integrated.js";
 for (const [id, [name, poly, init, reflect, xorout, out]] of Object.entries(CRC_PARAMS)) {
   EDU_EN[id] = { ...EDU_EN[id], what: `${name}: an independent CRC parameter set, not a cryptographic hash.`,
-    principle: `poly=0x${poly}, init=0x${init}, refin=refout=${reflect}, xorout=0x${xorout}. Polynomial is written in normal form even for a reflected implementation.`,
+    principle: `CRC treats bit strings as polynomials over $\\mathrm{GF}(2)$ and performs modulo-2 division by a generator. The lower bits of the generator below are in normal notation (the leading term is implicit), even for a reflected implementation.\n\n` +
+      ["```text", `poly=0x${poly}`, `init=0x${init}`, `refin=${reflect}`, `refout=${reflect}`, `xorout=0x${xorout}`, "```"].join("\n"),
     usage: "Enter UTF-8 text to compute the hexadecimal checksum with fixed parameters. Change CRC slots for another parameter set. Adler-32 is not in this family.", examples: [{ in: "123456789", out }],
     tips: ["CRC detects errors, not malicious tampering. CRC-64/ECMA-182 is not CRC-64/XZ.", "https://reveng.sourceforge.io/crc-catalogue/all.htm"] };
 }
@@ -265,7 +266,7 @@ for (const [id, out] of Object.entries(HASH_VECTORS)) {
   const xof = id.startsWith("shake");
   EDU_EN[id] = { ...EDU_EN[id],
     what: `${id.toUpperCase()}: ${xof ? "extendable-output function" : `${out.length * 4}-bit message digest${id === "sha3" ? " at the default width (also 224/384/512)" : ""}`}. Sliders group independent operations, not HMAC/KDFs.`,
-    principle: xof ? `FIPS 202 sponge XOF. For n output bits, generic collision strength is at most min(${id === "shake128" ? 128 : 256}, n/2), and preimage strength at most min(${id === "shake128" ? 128 : 256}, n). Shortening the output reduces security. Short outputs are prefixes of longer outputs.` : id === "sha3" ? "FIPS 202 Keccak-f[1600] sponge with SHA-3 domain separation, not the legacy Keccak hash." : id === "sha0" ? "Original 1993 FIPS 180; differs from SHA-1 in message-schedule rotation and is obsolete." : "FIPS 180 iterative message hashing, not reversible encryption. SHA-384 uses different initial values before truncation, not a prefix of SHA-512.",
+    principle: xof ? `FIPS 202 sponge XOF. For $n$ output bits, generic collision strength is at most $\\min(${id === "shake128" ? 128 : 256}, n/2)$ bits and preimage strength at most $\\min(${id === "shake128" ? 128 : 256}, n)$ bits. For the same input, short outputs are prefixes of longer outputs.` : id === "sha3" ? "FIPS 202 Keccak-f[1600] sponge with SHA-3 domain separation, not the legacy Keccak hash." : id === "sha0" ? "Original 1993 FIPS 180; differs from SHA-1 in message-schedule rotation and is obsolete." : "FIPS 180 iterative message hashing, not reversible encryption. SHA-384 uses different initial values before truncation, not a prefix of SHA-512.",
     usage: xof ? "Enter text and select output bytes. The example requests 32 bytes." : "Enter text. SHA-0 also accepts inputType=hex; SHA-3 keeps its output-width parameter.",
     examples: [{ in: "abc", out, ...(xof ? {param: "32 output bytes"} : id === "sha3" ? {param: "bits=256"} : {}) }],
     tips: ["SHA-0/SHA-1 are unsuitable for new collision-resistant security uses. Fast hashes are not password-storage KDFs.", "References: FIPS 180 and FIPS 202. Digest length alone does not identify an algorithm."],

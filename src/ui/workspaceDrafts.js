@@ -180,7 +180,8 @@ export function createWorkspaceDrafts(root, { onClear, onRestore, onStorageError
         if (controller && coding) {
           controller.setCharset(coding.charset, { emit: false });
           controller.setBitOrder(coding.bitOrder, { emit: false });
-          controller.setView(coding.view, { emit: false });
+          // 只有用户手动选过视图才恢复；否则视图由 op 默认编码推导（避免覆盖推导结果）
+          if (coding.viewUserSet) controller.setView(coding.view, { emit: false, restored: true });
           controller.setKeepBom(coding.keepBom, { emit: false });
           controller.refresh();
         }

@@ -8,11 +8,19 @@
 import { register } from "./registry.js";
 import { asmDisasmRun } from "./asmDisasm.js";
 
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null。真字节优先于文本重解。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 register({
   id: "disasmArm",
   cat: "forensic",
   name: "反汇编 ARM",
   desc: "把 ARM / Thumb / ARM64 机器码反汇编为汇编；输入 hex/base64，可设起始地址。复用内置 Capstone wasm，零外发",
+  acceptsBytes: true,
   params: [
     { key: "arch", label: "架构", type: "select", default: "arm", options: [
       { value: "arm", label: "ARM (32-bit)" },
@@ -28,7 +36,7 @@ register({
   async run(text, p) {
     return asmDisasmRun({
       text,
-      rawBytes: p.rawBytes,
+      rawBytes: rawBytesOf(p),
       params: { arch: p.arch, enc: p.enc, base: p.base },
     });
   },

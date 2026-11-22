@@ -47,6 +47,13 @@
  */
 import { register } from "./registry.js";
 
+/** rawBytes 归一化：Uint8Array / ArrayBuffer / 数组 → Uint8Array；无字节返回 null。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 // ---- 小端整数读取 ----
 function u16le(b, i) { return (b[i] | (b[i + 1] << 8)) >>> 0; }
 function u32le(b, i) { return ((b[i]) | (b[i + 1] << 8) | (b[i + 2] << 16) | (b[i + 3] * 0x1000000)) >>> 0; }
@@ -717,14 +724,13 @@ function extract7zHash(bytes, maxDataLen = 200) {
 function sevenZip2johnRun(text, p = {}) {
   const enc = p.inputEnc || "hex";
   const maxDataLen = parseInt(p.maxDataLen, 10) || 200;
+  const rb = rawBytesOf(p);
 
-  if ((!text || !String(text).trim()) && !(p && p.rawBytes && p.rawBytes.length)) return "（空输入）";
+  if ((!text || !String(text).trim()) && !(rb && rb.length)) return "（空输入）";
   let bytes;
   try {
  // 拖入文件走 rawBytes 通道（acceptsBytes 约定）：直接用真字节，跳过 hex/base64 文本解析。
-    bytes = (p && p.rawBytes && p.rawBytes.length)
-      ? (p.rawBytes instanceof Uint8Array ? p.rawBytes : new Uint8Array(p.rawBytes))
-      : inputToBytes(text, enc);
+    bytes = (rb && rb.length) ? rb : inputToBytes(text, enc);
   } catch (e) {
     return "输入解析失败：" + (e && e.message ? e.message : String(e));
   }

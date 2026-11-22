@@ -75,6 +75,13 @@ function fromBytes(bytes, enc = "auto", binary = false) {
   return bytesToHex(bytes);
 }
 
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null。真字节优先于文本重解。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 function cobsRun(text, p = {}) {
   if (p.inputEnc != null && String(p.inputEnc).toLowerCase() !== "auto") {
     throw new Error("inputEnc 该参数已废弃，请改用输入视图");
@@ -94,7 +101,8 @@ function cobsRun(text, p = {}) {
 async function lzmaRun(text, p = {}) {
   const dir = String(p.dir || "decode").toLowerCase();
   const format = String(p.format || "auto").toLowerCase();
-  const input = toBytes(text, p.inputEnc || "auto");
+  const rawBytes = rawBytesOf(p);
+  const input = rawBytes || toBytes(text, p.inputEnc || "auto");
   if (dir === "encode") {
     const preset = p.preset == null || p.preset === "" ? 6 : Number(p.preset);
     if (!Number.isInteger(preset) || preset < 0 || preset > 9) throw new Error("LZMA：preset 必须是 0..9");
@@ -109,7 +117,7 @@ async function lzmaRun(text, p = {}) {
   let props = p.props ? parsePropsBytes(p.props) : null;
   let size = p.size == null || p.size === "" ? null : Number(p.size);
   const s = String(text);
-  const m = /^props=([0-9a-fA-F]+)\r?\nsize=(\d+)\r?\n([\s\S]*)$/.exec(s);
+  const m = rawBytes ? null : /^props=([0-9a-fA-F]+)\r?\nsize=(\d+)\r?\n([\s\S]*)$/.exec(s);
   if (m) {
     props = parsePropsBytes(m[1]);
     size = Number(m[2]);
@@ -146,7 +154,7 @@ function tarRun(text, p = {}) {
     });
     return fromBytes(bytes, p.outEnc || "auto", true);
   }
-  const input = toBytes(text, p.inputEnc || "auto");
+  const input = rawBytesOf(p) || toBytes(text, p.inputEnc || "auto");
   if (dir === "list") {
     const rows = tarList(input);
     return rows.map((e) => `${e.type === "dir" ? "d" : "-"} ${String(e.size).padStart(10)} ${e.name}`).join("\n");

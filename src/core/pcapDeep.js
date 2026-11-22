@@ -100,16 +100,25 @@ function sanitizeFileStem(s) {
 // ============================================================
 // 共享：解码 pcap → 逐包分帧结果
 // ============================================================
+/** 归一化 rawBytes：ArrayBuffer / TypedArray / DataView / 普通数组 → Uint8Array；无则 null。
+ *  注意 ArrayBuffer 没有 .length，DataView 直接 new Uint8Array(view) 会得到 0 字节，故必须分流。 */
+function normalizeRawBytes(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  if (b instanceof Uint8Array) return b;
+  if (ArrayBuffer.isView(b)) return new Uint8Array(b.buffer, b.byteOffset, b.byteLength);
+  if (b instanceof ArrayBuffer) return new Uint8Array(b);
+  return new Uint8Array(b);
+}
 export function decodePcap(text, enc, p) {
-  if ((!text || !String(text).trim()) && !(p && p.rawBytes && p.rawBytes.length)) {
+  const rb = normalizeRawBytes(p);
+  if ((!text || !String(text).trim()) && !(rb && rb.length)) {
     return { error: "（空输入）请输入 pcap/pcapng 文件的 hex 或 base64 编码。" };
   }
   let bytes;
   try {
  // 拖入文件走 rawBytes 通道（acceptsBytes 约定）：直接用真字节，跳过 hex/base64 文本解析。
-    bytes = (p && p.rawBytes && p.rawBytes.length)
-      ? (p.rawBytes instanceof Uint8Array ? p.rawBytes : new Uint8Array(p.rawBytes))
-      : inputToBytes(text, enc || "auto");
+    bytes = (rb && rb.length) ? rb : inputToBytes(text, enc || "auto");
   } catch (e) {
     return { error: "输入解析失败：" + (e && e.message ? e.message : String(e)) };
   }

@@ -3,6 +3,13 @@ import { register } from "./registry.js";
 import { sm3Compress } from "./hashExt.js";
 import { hexToBytes, bytesToHex } from "./bytesIo.js";
 const rot = (x, n) => ((x << n) | (x >>> (32 - n))) >>> 0;
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null，并归一化为 Uint8Array。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  if (ArrayBuffer.isView(b)) return b instanceof Uint8Array ? b : new Uint8Array(b.buffer, b.byteOffset, b.byteLength);
+  return new Uint8Array(b);
+}
 export function sm3Padding(length) {
   const len = BigInt(length);
   if (len < 0n || len >= (1n << 61n)) throw new Error("SM3 字节长度须在 [0,2^61) / invalid byte length");
@@ -44,8 +51,10 @@ register({
   ],
   run(text, params = {}) {
     if (!["text", "hex"].includes(params.appendEncoding || "text")) throw new Error("追加编码须为 text / hex");
-    const append = params.appendEncoding === "hex" ? hexToBytes(String(text).replace(/\s+/g, "")) : new TextEncoder().encode(text);
+ // hex 视图 / 拖入文件已给出真字节 → 无条件优先，跳过 appendEncoding 文本解析（避免二次解码）。
+    const append = rawBytesOf(params) || (params.appendEncoding === "hex" ? hexToBytes(String(text).replace(/\s+/g, "")) : new TextEncoder().encode(text));
     const r = extendSM3(params.digest, params.originalLength, append);
     return { text: `newHash: ${r.digest}\nglue: ${bytesToHex(r.glue)}\nsuffix: ${bytesToHex(r.suffix)}\n原消息后追加 suffix / Append suffix to the original message.\n前提：原始总字节数猜测正确；不适用于 HMAC-SM3 / NOT an HMAC attack.`, files: [{ name: "sm3-extension-suffix.bin", mime: "application/octet-stream", bytes: r.suffix }] };
   },
+  acceptsBytes: true,
 });

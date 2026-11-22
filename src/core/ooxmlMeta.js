@@ -31,6 +31,14 @@ import { inflateRaw } from "./pcapDeep.js";
 import { inputToBytes } from "./compress.js";
 import { findEocd, crc32Bytes, makeStoredZip } from "./zipRepair.js";
 
+// 拖入文件走 rawBytes 通道（acceptsBytes 约定）：统一归一化为 Uint8Array。
+// Uint8Array / ArrayBuffer / 普通数组都能用；无字节返回 null。
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 // ============ ZIP 条目读取（EOCD → CD → LFH 精确路径） ============
 
 const u16 = (b, o) => b[o] | (b[o + 1] << 8);
@@ -153,12 +161,14 @@ const TARGETS = [
 
 function ooxmlMetaRun(text, p) {
   const pp = p || {};
-  if ((!text || !String(text).trim()) && !(pp.rawBytes && pp.rawBytes.length)) {
+  const rb = rawBytesOf(pp);
+  if ((!text || !String(text).trim()) && !(rb && rb.length)) {
     return "（空输入）请拖入 docx / xlsx / pptx 文件或粘贴 hex / base64 字节。";
   }
   let data;
   try {
-    data = inputToBytes(text, pp);
+ // 拖入文件走 rawBytes 通道（acceptsBytes 约定）：真字节优先，跳过 hex/base64 文本解析。
+    data = (rb && rb.length) ? rb : inputToBytes(text, pp);
   } catch (e) {
     return "输入解析失败：" + (e && e.message ? e.message : String(e));
   }

@@ -146,7 +146,7 @@ html .workspace select, html .env-panel select, html .ds-dialog select,
 .home-editor-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
 .home-input-label { font-size: var(--fs-sm); font-weight: 600; }
 .home-editor-head .et-toolbar { margin: 0; }
-.home-studio .home-input { background: var(--surface); height: 200px; padding: 20px; }
+.home-studio .home-input { background: var(--surface); height: calc(200px * var(--io-height-scale)); padding: 20px; }
 .home-input-hint { font-size: var(--fs-xs); line-height: 1.55; color: var(--on-surface-var); margin-top: 10px; }
 .home-studio .magic-toolbar { margin-block: 20px 16px; gap: 12px; padding-top: 20px; border-top: 1px solid var(--line-subtle); }
 .home-studio .magic-row { gap: 8px 12px; }
@@ -298,7 +298,7 @@ html.reduce-motion .batch-panel button:active { transform: none; }
   .home-editor-head { gap: 6px; }
   .home-editor-head .et-toolbar { gap: 0; }
   .home-editor-head .et-btn { width: 40px; height: 44px; }
-  .home-studio .home-input { height: 200px; padding: 14px; font-size: 16px; }
+  .home-studio .home-input { padding: 14px; font-size: 16px; }
   .home-studio .magic-toolbar { margin-top: 16px; padding-top: 16px; }
   .home-target-editor .mt575-row { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 8px; }
   .home-target-editor .mt575-label { grid-column: 1 / -1; }

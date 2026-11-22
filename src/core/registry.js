@@ -208,6 +208,7 @@ const LEGACY_OP_IDS = {
   qrParse: "qrScanImage", xiangyueEnc: "xiangyue",
   brainlollerEncode: "brainloller", brainlollerDecode: "brainloller",
   braincopterEncode: "braincopter", braincopterDecode: "braincopter",
+  jweEncrypt: "jweCipher", jweDecrypt: "jweCipher",
 };
 
 // 旧 id 别名：能被 getOp 取到并执行，但不进 OPS（列表 / 搜索 / 计数 / 一键解码都看不到）。
@@ -282,7 +283,7 @@ export const FAMILY_NAMES = {
   ed448: "Ed448",
   x448: "X448",
   gost: "GOST 签名",
-  railfence: "Rail Fence",
+  railfence: "栅栏密码",
   bzip2: "bzip2",
   falcon: "Falcon / FN-DSA",
   jws: "JWS",

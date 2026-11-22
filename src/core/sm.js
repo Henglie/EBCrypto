@@ -295,7 +295,7 @@ function decodeInput(s, enc) {
 }
 
 // 编码输出
-function encodeOutput(bytes, enc) {
+function encodeOutputText(bytes, enc) {
   if (enc === "hex") return bytesToHex(bytes);
   if (enc === "base64") return bytesToB64(bytes);
   if (enc === "latin1") {
@@ -303,8 +303,18 @@ function encodeOutput(bytes, enc) {
     for (const x of bytes) s += String.fromCharCode(x);
     return s;
   }
-  return td(bytes); // utf8
+  return td(bytes); // ut
+f8
 }
+/** 统一输出契约：text 保持旧值（配方/产物/文案不变），bytes 供全局输出视图渲染 hex/base64。 */
+function encodeOutput(bytes, enc) {
+  const t = encodeOutputText(bytes, enc);
+  const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  // 原分支可能已返回产物对象（含 text/files）：合并而非嵌套
+  if (t && typeof t === "object") return { ...t, bytes: t.bytes || b };
+  return { text: t, bytes: b };
+}
+
 
 // ZUC op（流密码，encode=decode 自反）
 register({
@@ -322,14 +332,16 @@ register({
     if (p && p.dataEnc != null && p.dataEnc !== "utf8") throw new Error("dataEnc 该参数已废弃，请改用输入视图");
     const key = hexToBytes(p.key || "00".repeat(16));
     const iv = hexToBytes(p.iv || "00".repeat(16));
-    const data = rawBytesOrNull(p, text) || decodeInput(text, "utf8");
+    // 真字节通道优先（hex/base64 视图、拖入文件）；纯文本视图无 rawBytes 时按 UTF-8 取字节。
+    const data = rawBytesOf(p) || decodeInput(text, "utf8");
     return encodeOutput(zucCrypt(data, key, iv), p.outEnc || "hex");
   },
   decode: (text, p) => {
     if (p && p.dataEnc != null && p.dataEnc !== "hex") throw new Error("dataEnc 该参数已废弃，请改用输入视图");
     const key = hexToBytes(p.key || "00".repeat(16));
     const iv = hexToBytes(p.iv || "00".repeat(16));
-    const data = rawBytesOrNull(p, text) || decodeInput(text, "hex");
+    // 真字节通道优先（hex/base64 视图、拖入文件）；纯文本视图无 rawBytes 时按 hex 解。
+    const data = rawBytesOf(p) || decodeInput(text, "hex");
     const out = zucCrypt(data, key, iv);
     const outEnc = p.outEnc || "utf8";
     return outEnc === "utf8" ? finishBytesDecode(out) : encodeOutput(out, outEnc);

@@ -373,6 +373,13 @@ function extractZipHash(zipBytes, maxDataLen = 200) {
   return { hashes, entryCount: entries.length, aesCount, cryptoCount, errors };
 }
 
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null，并归一化为 Uint8Array。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 /**
  * op run 函数：提取 ZIP hash 串。
  * @param {string} text 输入文本（hex/base64/原始字节）
@@ -382,13 +389,12 @@ function zip2johnRun(text, p = {}) {
   const enc = p.inputEnc || "auto";
   const maxDataLen = parseInt(p.maxDataLen, 10) || 200;
 
-  if ((!text || !String(text).trim()) && !(p && p.rawBytes && p.rawBytes.length)) return "（空输入）";
+  const rb = rawBytesOf(p);
+  if ((!text || !String(text).trim()) && !(rb && rb.length)) return "（空输入）";
   let zipBytes;
   try {
- // 拖入文件走 rawBytes 通道（acceptsBytes 约定）：直接用真字节，跳过 hex/base64 文本解析。
-    zipBytes = (p && p.rawBytes && p.rawBytes.length)
-      ? (p.rawBytes instanceof Uint8Array ? p.rawBytes : new Uint8Array(p.rawBytes))
-      : inputToBytes(text, enc);
+ // 拖入文件 / hex·base64 视图走 rawBytes 通道（acceptsBytes 约定）：真字节无条件优先，跳过文本解析。
+    zipBytes = (rb && rb.length) ? rb : inputToBytes(text, enc);
   } catch (e) {
     return "输入解析失败：" + (e && e.message ? e.message : String(e));
   }

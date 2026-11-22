@@ -26,6 +26,13 @@
  */
 import { register } from "./registry.js";
 
+/** rawBytes 归一化：Uint8Array / ArrayBuffer / 数组 → Uint8Array；无字节返回 null。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 // ---- hex 编码（Uint8Array → hex 串） ----
 function toHex(bytes) {
   let s = "";
@@ -249,14 +256,13 @@ function extractPdfHash(pdfBytes) {
  */
 function pdf2johnRun(text, p = {}) {
   const enc = p.inputEnc || "auto";
-  if ((!text || !String(text).trim()) && !(p && p.rawBytes && p.rawBytes.length)) return "（空输入）";
+  const rb = rawBytesOf(p);
+  if ((!text || !String(text).trim()) && !(rb && rb.length)) return "（空输入）";
 
   let pdfBytes;
   try {
  // 拖入文件走 rawBytes 通道（acceptsBytes 约定）：直接用真字节，跳过 hex/base64 文本解析。
-    pdfBytes = (p && p.rawBytes && p.rawBytes.length)
-      ? (p.rawBytes instanceof Uint8Array ? p.rawBytes : new Uint8Array(p.rawBytes))
-      : inputToBytes(text, enc);
+    pdfBytes = (rb && rb.length) ? rb : inputToBytes(text, enc);
   } catch (e) {
     return "输入解析失败：" + (e && e.message ? e.message : String(e));
   }

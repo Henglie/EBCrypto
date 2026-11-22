@@ -226,14 +226,31 @@ function decodeEncBytes(raw, enc) {
   return hexToBytes(s);
 }
 
-function encodeOutBytes(bytes, enc) {
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null。真字节优先于文本重解。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
+function encodeOutBytesText(bytes, enc) {
   if (enc === "Raw" || enc === "Latin1") {
     let s = "";
     for (const b of bytes) s += String.fromCharCode(b);
     return s;
   }
-  return bytesToHex(bytes);
+  return bytesToHex(bytes
+);
 }
+/** 统一输出契约：text 保持旧值（配方/产物/文案不变），bytes 供全局输出视图渲染 hex/base64。 */
+function encodeOutBytes(bytes, enc) {
+  const t = encodeOutBytesText(bytes, enc);
+  const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  // 原分支可能已返回产物对象（含 text/files）：合并而非嵌套
+  if (t && typeof t === "object") return { ...t, bytes: t.bytes || b };
+  return { text: t, bytes: b };
+}
+
 
 /** CyberChef AES Key Wrap/Unwrap 同口径：Key(KEK)/IV 可 toggle，Input/Output Hex/Raw。 */
 function keyWrapCc(text, p) {
@@ -243,7 +260,7 @@ function keyWrapCc(text, p) {
   checkKek(kek);
   const iv = decodeEncBytes((p && p.iv != null ? p.iv : "a6a6a6a6a6a6a6a6"), p && p.ivEnc || "Hex");
   if (iv.length !== 8) throw new Error(`IV 须为 8 字节（当前 ${iv.length}）`);
-  const data = decodeEncBytes(text, p && p.inEnc || "Hex");
+  const data = rawBytesOf(p) || decodeEncBytes(text, p && p.inEnc || "Hex");
   let out;
   if (mode === "wrap") {
     if (std === "5649") out = aesKeyWrap5649(kek, data);
@@ -274,7 +291,7 @@ function keyWrapRun(text, p) {
   lines.push(`模式: ${mode === "wrap" ? "包装 wrap" : "解包 unwrap"} · KEK ${kek.length * 8} 位`);
 
   if (mode === "wrap") {
-    const pt = hexToBytes(text);
+    const pt = rawBytesOf(p) || hexToBytes(text);
     const ct = std === "5649" ? aesKeyWrap5649(kek, pt) : aesKeyWrap3394(kek, pt);
     lines.push(`key data: ${pt.length} 字节`);
     lines.push("");
@@ -282,7 +299,7 @@ function keyWrapRun(text, p) {
     return lines.join("\n");
   }
 
-  const ct = hexToBytes(text);
+  const ct = rawBytesOf(p) || hexToBytes(text);
   const pt = std === "5649" ? aesKeyUnwrap5649(kek, ct) : aesKeyUnwrap3394(kek, ct);
   lines.push(`密文: ${ct.length} 字节`);
   lines.push("");
@@ -332,6 +349,7 @@ register({
       options: [{ value: "Hex", label: "Hex" }, { value: "Raw", label: "Raw" }] },
   ],
   run: keyWrapRun,
+  acceptsBytes: true,
 });
 
 export { hexToBytes, bytesToHex };

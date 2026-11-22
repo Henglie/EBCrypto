@@ -22,6 +22,13 @@
 import { register } from "./registry.js";
 import { keccak } from "./hash.js";
 
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null，并归一化为 Uint8Array。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 // left_encode(x)（SP 800-185 §2.3.2）：[字节数 N] ‖ x 的 N 字节大端（x 非零时去前导 0；x=0 → N=1）
 function leftEncode(x) {
   let n = 1;
@@ -114,8 +121,8 @@ register({
     const sBytes = bytesFromInput(p && p.customization, enc, "定制串 S");
     const outLen = (p && p.outLen != null) ? Number(p.outLen) : 32;
     if (!Number.isFinite(outLen) || outLen < 0) throw new Error("输出字节数须为非负整数");
-    const raw = p && p.rawBytes;
-    const msg = raw || new TextEncoder().encode(String(t ?? ""));
+    // 真字节无条件优先：rawBytes 归一化后直接用（普通数组 / ArrayBuffer / TypedArray 都吃）
+    const msg = rawBytesOf(p) || new TextEncoder().encode(String(t ?? ""));
     return toHex(cshake(bits, msg, outLen, nBytes, sBytes));
   },
 });

@@ -510,6 +510,13 @@ function findFlags(text) {
 // ============================================================
 // run：主入口
 // ============================================================
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null，并归一化为 Uint8Array。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 function stegosaurusRun(text, p) {
   const inputEnc = (p && p.inputEnc) || "auto";
   const bitOrder = (p && p.bitOrder) || "lsb";
@@ -519,12 +526,11 @@ function stegosaurusRun(text, p) {
   L.push("=== Stegosaurus pyc 隐写检测 ===");
   L.push("");
 
+  const rb = rawBytesOf(p);
   let bytes;
   try {
- // 拖入文件走 rawBytes 通道（acceptsBytes 约定）：真字节优先，跳过 hex/base64 文本解析。
-    bytes = (p && p.rawBytes && p.rawBytes.length)
-      ? (p.rawBytes instanceof Uint8Array ? p.rawBytes : new Uint8Array(p.rawBytes))
-      : parseInput(text, inputEnc);
+ // 拖入文件 / hex·base64 视图走 rawBytes 通道（acceptsBytes 约定）：真字节无条件优先，跳过文本解析。
+    bytes = (rb && rb.length) ? rb : parseInput(text, inputEnc);
   } catch (e) {
     L.push("✗ 输入解析失败: " + (e.message || String(e)));
     L.push("  提示：请粘贴 .pyc 文件的 hex 或 base64。");

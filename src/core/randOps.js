@@ -31,7 +31,7 @@ export const RAND_OPS = Object.freeze(new Set([
   "dsaSign", "ecdsaSign", "ed448Sign", "falconSign", "gostSign", "mldsaSign", "rsaSign",
   "schnorrSign", "slhdsaSign", "sm2Sign", "sm2Encrypt", "sm2KeyExchange",
   "hqcEncrypt", "mlkemEncaps", "ntruEncrypt", "paillierEncrypt", "xwingEncaps",
-  "x25519Shared", "lsagSign", "pedersenCommit", "feldmanVss", "jweEncrypt",
+  "x25519Shared", "lsagSign", "pedersenCommit", "feldmanVss", "jweEncrypt", "jweCipher",
   "rsaOaepEnc", "hpkeSeal",
   // —— 分组 / 流密码与对称封装（随机 IV / salt）——
   "ascon", "fernet", "emojiAes", "yueChang", "dxBase64", "rabbit", "opensslDec",

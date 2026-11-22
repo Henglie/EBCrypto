@@ -39,6 +39,13 @@
 import { register } from "./registry.js";
 import { keccak } from "./hash.js";
 
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null。真字节优先于文本重解。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 const Q = 12289;
 // k = ⌊2^16/q⌋ = 5；k·q = 61445（HashToPoint 16 bit 采样的接受上界，spec 算法 3 第 7 行）
 const KQ = 61445;
@@ -415,8 +422,7 @@ register({
   ],
   run: (t, p) => {
     const enc = (p && p.inputEnc) === "base64" ? "base64" : "hex";
-    const raw = p && p.rawBytes;
-    const pkBytes = raw || bytesFromInput(t, enc, "公钥");
+    const pkBytes = rawBytesOf(p) || bytesFromInput(t, enc, "公钥");
     const pk = parsePublicKey(pkBytes);
     const { logn, P, h } = pk;
     let min = Q;
@@ -461,12 +467,9 @@ register({
     throw new Error("msgEnc 该参数已废弃，请改用输入视图");
   }
     const enc = (p && p.inputEnc) === "base64" ? "base64" : "hex";
-    const rawBytes = p && p.rawBytes;
     const pkBytes = bytesFromInput(p && p.publicKey, enc, "公钥");
     const sigBytes = bytesFromInput(p && p.signature, enc, "签名");
-    const msgBytes = rawBytes != null
-      ? (rawBytes instanceof Uint8Array ? rawBytes : new Uint8Array(rawBytes))
-      : new TextEncoder().encode(String(t ?? ""));
+    const msgBytes = rawBytesOf(p) || new TextEncoder().encode(String(t ?? ""));
     // 空消息视为「未提供」（NIST 格式下消息取自 blob；提供了非空消息且不一致才报错）
     const r = falconVerifyCore(pkBytes, sigBytes, msgBytes, msgBytes.length ? msgBytes : null);
     const P = PARAMS[r.logn];

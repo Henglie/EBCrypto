@@ -26,6 +26,13 @@ const B64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345
 
 const te = (s) => new TextEncoder().encode(s);
 
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null，并归一化为 Uint8Array。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 // ============ 输入解码 ============
 function hexToBytesStrict(s) {
   const h = s.replace(/\s+/g, "");
@@ -55,7 +62,8 @@ function base64ToBytesStrict(s) {
 }
 
 function toBytes(text, p) {
-  const raw = p && p.rawBytes != null ? p.rawBytes : text;
+  // 真字节无条件优先：rawBytes 归一化后直接用（普通数组 / ArrayBuffer / TypedArray 都吃）
+  const raw = rawBytesOf(p) || text;
   if (raw instanceof Uint8Array) return raw;
   if (raw instanceof ArrayBuffer) return new Uint8Array(raw);
   if (ArrayBuffer.isView(raw)) return new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength);
@@ -216,7 +224,7 @@ export async function bzip2EncRun(text, p) {
       " 字符，已拒绝（不截断）。请缩小输入或改用 hex/base64 之外的处理方式。"
     );
   }
-  return encoded;
+  return { text: encoded, bytes: compressed };
 }
 
 register({

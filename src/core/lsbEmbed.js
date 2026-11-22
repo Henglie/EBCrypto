@@ -106,15 +106,23 @@ export function lsbEmbedPixels(rgba, n, chans, bit, msbFirst, payloadBytes) {
 
 // ============ op run ============
 
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null，并归一化为 Uint8Array。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 function lsbEmbedRun(text, p) {
   const pp = p || {};
   const payload = pp.payload == null ? "" : String(pp.payload);
 
-  if ((!text || !String(text).trim()) && !(pp.rawBytes && pp.rawBytes.length)) {
+  const rb = rawBytesOf(pp);
+  if ((!text || !String(text).trim()) && !(rb && rb.length)) {
     return "（空输入）请拖入封面图片（PNG/BMP）或粘贴其 hex / base64 字节，并在「载荷」填要嵌入的文本。";
   }
   let bytes;
-  try { bytes = inputToBytes(text, pp); }
+  try { bytes = (rb && rb.length) ? rb : inputToBytes(text, pp); }
   catch (e) { return "封面输入解析失败：" + (e && e.message ? e.message : String(e)); }
 
   const chans = parseChannels(pp.channels != null ? pp.channels : "RGB");

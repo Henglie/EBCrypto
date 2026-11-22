@@ -3939,8 +3939,31 @@ function renderOp() {
 
   // 算法参数和输入、输出的格式设置使用同一面板。
   const paramBar = el("div", { class: "op-params" });
+  // 统一：acceptsBytes 的 op 其"输入/输出编码"由全局视图接管，不再单独显示重复控件。
+  // 分两类：
+  //  · 输入侧（inputEnc/inEnc/dataEnc/...）：完全隐藏，由输入视图决定。
+  //  · 输出侧（outEnc/outputEnc/cipherEnc/...）：只在「加密」方向显示并改名为"输出编码（密文）"；
+  //    解密方向隐藏——因为解密时它是输入编码，由输入视图承担（消除"密文编码"一词两义）。
+  // 仅当选项都能被视图表达时才隐藏（含 dec/state/h0 这类进制，保留参数，避免丢功能）。
+  const IN_ENC_PARAM_RE = /^(inputEnc|inEnc|inputType|inputMode|msgMode|msgEnc|dataEnc|inputFormat|contentEnc|enc|input|decodeAs|srcEncoding|inputEncoding|inEncoding|plainEnc|cipherFormat)$/i;
+  const OUT_ENC_PARAM_RE = /^(outEnc|outputEnc|outFormat|cipherEnc|ctEnc|cipherEncoding|ciphertextEnc)$/i;
+  // utf16/utf16le/utf16be 由「字符集」下拉承担，不算"视图表达不了"，故可隐藏参数。
+  const VIEW_EXPRESSIBLE = new Set(["hex", "base64", "raw", "Raw", "latin1", "Latin1", "utf8", "text", "auto", "", "utf16", "utf16le", "utf16be"]);
+  // 报告型输出（值嵌在正文里）/ cc 模式开关：视图无法替代，保留参数。
+  const KEEP_OUTENC_PARAM = new Set(["f5stego", "knapsack", "rabbit"]);
+  const isViewExpressible = (d) => {
+    const opts = Array.isArray(d && d.options) ? d.options.map((o) => String(o.value)) : [];
+    if (!opts.length) return false;
+    return opts.every((v) => VIEW_EXPRESSIBLE.has(v));
+  };
   for (const d of op.params) {
     if (d.uiHidden) continue;
+    if (op.acceptsBytes === true && isViewExpressible(d) && IN_ENC_PARAM_RE.test(String(d.key))) continue;
+    if (op.acceptsBytes === true && OUT_ENC_PARAM_RE.test(String(d.key))) {
+      // 输出编码：op 已返回 bytes，由全局输出视图渲染（utf16 由字符集下拉承担）。
+      // 例外：报告型输出（值嵌在报告正文里）与 cc 模式开关，视图无法替代，保留参数。
+      if (!KEEP_OUTENC_PARAM.has(op.id)) continue;
+    }
     const control = renderParam(op, d);
     if (isDual && (d.dir === "encode" || d.dir === "decode")) {
       control.dataset.opDirection = d.dir;
@@ -4101,6 +4124,7 @@ function renderOp() {
             params: runParams,
             acceptsBytes: !!op.acceptsBytes,
             rawBytes: !hasFields && inArea ? inArea._rawBytes : null,
+            dir: state.dir,
           });
           runInput = prepared.text;
           ioCtl.reportWarnings(prepared.warnings);
@@ -4282,6 +4306,7 @@ function renderOp() {
     onChange: () => rerenderOpOutput(),
     getOp: () => op,
     getParams: () => state.params,
+    getDir: () => state.dir,
   });
   function syncInputVisibility() {
     if (!hasFields) {
@@ -4305,6 +4330,7 @@ function renderOp() {
       onChange: () => triggerConvert(),
       getOp: () => op,
       getParams: () => state.params,
+      getDir: () => state.dir,
     });
   }
   syncInputVisibility();
@@ -4434,24 +4460,67 @@ function renderEduCard(opId) {
  // 多段文本（"\n\n" 分段）→ 若干 <p>
   const paras = (text) => {
     const wrap = el("div", { class: "edu-paras" });
-    for (const seg of String(text).split(/\n\n+/)) {
- // 段落以块级 HTML 标签开头（table/ul/ol/pre/div/figure）→ 整段 innerHTML，不拆 <br>
-      if (/^\s*<(table|ul|ol|pre|div|figure|blockquote)\b/i.test(seg)) {
-        const block = el("div", { class: "edu-rich-block" });
-        block.innerHTML = seg;
-        linkifyDomTextNodes(block, linkOpts);
-        wrap.append(block);
+    const lines = String(text).replace(/\r\n?/g, "\n").split("\n");
+    const appendParagraphs = (source) => {
+      for (const seg of source.split(/\n\n+/).filter(Boolean)) {
+        if (/^\s*<(table|ul|ol|pre|div|figure|blockquote)\b/i.test(seg)) {
+          const block = el("div", { class: "edu-rich-block" });
+          block.innerHTML = seg;
+          linkifyDomTextNodes(block, linkOpts);
+          wrap.append(block);
+          continue;
+        }
+        const paragraph = seg.split("\n");
+        let p = null;
+        for (let i = 0; i < paragraph.length; i++) {
+          const line = paragraph[i];
+          const item = /^(\d{1,9})\.\s+(.+)$/.exec(line);
+          const next = /^(\d{1,9})\.\s+(.+)$/.exec(paragraph[i + 1] || "");
+          if (item && next && Number(next[1]) === Number(item[1]) + 1) {
+            const list = el("ol", { class: "edu-md-list", start: item[1] });
+            let cursor = i, expected = Number(item[1]);
+            for (; cursor < paragraph.length; cursor++, expected++) {
+              const entry = /^(\d{1,9})\.\s+(.+)$/.exec(paragraph[cursor]);
+              if (!entry || Number(entry[1]) !== expected) break;
+              list.append(el("li", {}, parse(entry[2])));
+            }
+            wrap.append(list);
+            p = null;
+            i = cursor - 1;
+          } else {
+            if (!p) { p = el("p", { class: "edu-para" }); wrap.append(p); }
+            else p.append(el("br"));
+            p.append(parse(line));
+          }
+        }
+      }
+    };
+    let start = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const fence = /^ {0,3}(`{3,}|~{3,})(?:[\w+-]+)?\s*$/.exec(lines[i]);
+      if (fence) {
+        const closeFence = new RegExp(`^ {0,3}${fence[1][0]}{${fence[1].length},}\\s*$`);
+        const end = lines.findIndex((line, j) => j > i && closeFence.test(line));
+        if (end < 0) break; // Keep an unclosed fence literal, including subsequent lines.
+        appendParagraphs(lines.slice(start, i).join("\n"));
+        wrap.append(el("pre", { class: "edu-code-block", tabindex: "0" }, el("code", {}, lines.slice(i + 1, end).join("\n"))));
+        i = end;
+        start = end + 1;
         continue;
       }
-      const p = el("p", { class: "edu-para" });
- // 段内单换行保留为 <br>
-      const lines = seg.split(/\n/);
-      lines.forEach((ln, i) => {
-        p.append(parse(ln));
-        if (i < lines.length - 1) p.append(el("br"));
-      });
-      wrap.append(p);
+      const blockMath = /^\s*\$\$([^$]+)\$\$\s*$/.exec(lines[i]);
+      if (blockMath || /^\s*\$\$\s*$/.test(lines[i])) {
+        const end = blockMath ? i : lines.findIndex((line, j) => j > i && /^\s*\$\$\s*$/.test(line));
+        if (end < 0) continue;
+        const tex = (blockMath ? blockMath[1] : lines.slice(i + 1, end).join("\n")).trim();
+        if (!tex) continue;
+        appendParagraphs(lines.slice(start, i).join("\n"));
+        wrap.append(el("div", { class: "edu-math edu-math-block", "data-tex": tex, "data-display": "1" }));
+        i = end;
+        start = end + 1;
+      }
     }
+    appendParagraphs(lines.slice(start).join("\n"));
     return wrap;
   };
 
@@ -4512,24 +4581,28 @@ function renderEduCard(opId) {
  // 示例表
   if (Array.isArray(edu.examples) && edu.examples.length) {
     const exWrap = el("div", { class: "edu-examples" });
+    const exampleValue = (value, output = false) => {
+      const code = el("code", { class: "edu-ex-val" + (output ? " edu-ex-val-out" : "") }, value);
+      return /[\r\n]/.test(String(value ?? "")) ? el("pre", { class: "edu-code-block edu-ex-block", tabindex: "0" }, code) : code;
+    };
     for (const ex of edu.examples) {
       const row = el("div", { class: "edu-example" });
       row.append(
         el("div", { class: "edu-ex-io" },
           el("span", { class: "edu-ex-tag" }, t("ui.edu.exIn")),
-          el("code", { class: "edu-ex-val" }, ex.in),
+          exampleValue(ex.in),
         ),
       );
       if (ex.param) {
         row.append(el("div", { class: "edu-ex-io" },
           el("span", { class: "edu-ex-tag" }, t("ui.edu.exParam")),
-          el("code", { class: "edu-ex-val" }, ex.param),
+          exampleValue(ex.param),
         ));
       }
       row.append(
         el("div", { class: "edu-ex-io" },
           el("span", { class: "edu-ex-tag edu-ex-tag-out" }, t("ui.edu.exOut")),
-          el("code", { class: "edu-ex-val edu-ex-val-out" }, ex.out),
+          exampleValue(ex.out, true),
         ),
       );
       if (ex.desc) { const exd = el("div", { class: "edu-ex-desc" }); exd.append(parse(ex.desc)); row.append(exd); }
@@ -4760,6 +4833,9 @@ function renderParam(op, d) {
     return x.label != null ? x.label : "";
   };
   const ptext = (x) => (x && typeof x === "object" ? (x.label != null || x.labelKey ? plabel(x) : String(x.value ?? x)) : String(x));
+  // 参数框可按 mode 参数显隐（与字段框 data-field-mode 同一语义）：op 在 params 上声明 mode。
+  // mode 可为单值或逗号分隔的多值（同一参数框在多个模式显示）。
+  if (d.mode) { wrap.dataset.paramMode = d.mode; wrap.hidden = !String(d.mode).split(",").includes(state.params.mode); }
   if (d.type === "bool") {
     const cb = el("input", { type: "checkbox", id });
     cb.checked = !!state.params[d.key];
@@ -4774,8 +4850,13 @@ function renderParam(op, d) {
     sel.value = state.params[d.key];
     sel.addEventListener("change", () => {
       state.params[d.key] = sel.value;
-      if (d.key === "mode") for (const field of document.querySelectorAll("#workspace [data-field-mode]")) {
-        field.hidden = field.dataset.fieldMode !== sel.value;
+      if (d.key === "mode") {
+        for (const field of document.querySelectorAll("#workspace [data-field-mode]")) {
+          field.hidden = field.dataset.fieldMode !== sel.value;
+        }
+        for (const box of document.querySelectorAll("#workspace [data-param-mode]")) {
+          box.hidden = !String(box.dataset.paramMode).split(",").includes(sel.value);
+        }
       }
       convert("param");
     });
@@ -5135,6 +5216,7 @@ async function convert(src) {
         params: callParams,
         acceptsBytes: !!op.acceptsBytes,
         rawBytes: !hasFields && inArea ? inArea._rawBytes : null,
+        dir: state.dir,
       });
     } catch (e) {
       outArea.value = "✗ " + (e.message || t("ui.toast.convertFail"));

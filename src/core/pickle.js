@@ -18,6 +18,13 @@
  */
 import { register } from "./registry.js";
 
+/** rawBytes 归一化：Uint8Array / ArrayBuffer / 数组 → Uint8Array；无字节返回 null。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 const te = (s) => new TextEncoder().encode(s);
 
 // ============================================================
@@ -363,12 +370,11 @@ function disassemble(bytes) {
 // ============================================================
 function pickleDisasmRun(text, p) {
   const enc = (p && p.inputEnc) || "auto";
-  if (!String(text).trim() && !(p && p.rawBytes && p.rawBytes.length)) return "（空输入）请粘贴 pickle 字节的 hex 或 base64。";
+  const rb = rawBytesOf(p);
+  if (!String(text).trim() && !(rb && rb.length)) return "（空输入）请粘贴 pickle 字节的 hex 或 base64。";
   let bytes;
   try {
-    bytes = (p && p.rawBytes && p.rawBytes.length)
-      ? (p.rawBytes instanceof Uint8Array ? p.rawBytes : new Uint8Array(p.rawBytes))
-      : inputToBytes(text, enc === "auto" ? "auto" : enc);
+    bytes = (rb && rb.length) ? rb : inputToBytes(text, enc === "auto" ? "auto" : enc);
   }
   catch (e) { return "输入解析失败: " + e.message; }
   if (bytes.length === 0) return "（解析出 0 字节）";

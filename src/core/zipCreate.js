@@ -152,13 +152,22 @@ export function bytesToBase64(bytes) {
 
 // ============ op run ============
 
+/** 取 acceptsBytes 真字节通道（params.rawBytes）；无则 null，并归一化为 Uint8Array（ArrayBuffer 亦可）。 */
+function rawBytesOf(p) {
+  const b = p && p.rawBytes;
+  if (b == null) return null;
+  return b instanceof Uint8Array ? b : new Uint8Array(b);
+}
+
 function zipCreateRun(text, p) {
   const pp = p || {};
-  if ((!text || !String(text).trim()) && !(pp.rawBytes && pp.rawBytes.length)) {
+  const rb = rawBytesOf(pp);
+  if ((!text || !String(text).trim()) && !(rb && rb.length)) {
     return "（空输入）请在输入区粘贴要打包的内容（UTF-8 文本 / hex / base64），或拖入文件直接打包。";
   }
   let data;
-  try { data = inputToBytes(text, pp); }
+ // 拖入文件 / hex·base64 视图走 rawBytes 通道（acceptsBytes 约定）：真字节无条件优先，跳过文本解析。
+  try { data = (rb && rb.length) ? rb : inputToBytes(text, pp); }
   catch (e) { return "输入解析失败：" + (e && e.message ? e.message : String(e)); }
 
   const comment = String(pp.comment || "");
