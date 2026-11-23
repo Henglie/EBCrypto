@@ -6,12 +6,20 @@ export const BATCH_TASK_LIMITS = Object.freeze({ maxTasks: 200, maxInputBytes: 8
   maxFiles: 200, maxFileBytes: 8 * 1024 * 1024, maxTotalBytes: 32 * 1024 * 1024 });
 // An explicit rollout scope, not a heuristic claim that every registered op works.
 // Every id below passed tools/batch_rollout_probe.mjs (batch == single == sourced expectation).
-export const BATCH_TASK_OPS = Object.freeze(['base64', 'md5', 'aes', 'rsaModpow', 'rsaCrt', 'babaiCvp', 'diffTool', 'gifFrames',
-  'sha1', 'sha256', 'sha384', 'sha512', 'sha3', 'ripemd160', 'blake2b', 'sm3', 'whirlpool', 'md4', 'crc32', 'hmac',
-  'base16', 'base32', 'base36', 'base45', 'base58', 'base62', 'base85', 'base91', 'base92', 'base100', 'crockford32', 'z85',
-  'caesar', 'vigenere', 'railFence', 'scytale', 'gronsfeld', 'beaufort', 'affine', 'atbash', 'playfair', 'autokey', 'bifid', 'columnar',
-  'url', 'htmlEntity', 'unicodeEscape', 'quotedPrintable', 'uuencode', 'xxencode', 'punycode', 'morse', 'bacon', 'rot13', 'rot47', 'a1z26',
-  'des', 'des3', 'blowfish', 'rc4', 'chacha20', 'salsa20', 'xor', 'sm4', 'tea', 'xtea', 'xxtea', 'rabbit']);
+export const BATCH_TASK_OPS = Object.freeze([
+  'a1z26', 'addLineNumbers', 'adler32', 'aes', 'aesCmac', 'aesKeyWrap', 'affine', 'albam',
+  'alternatingCaps', 'aria', 'asciiOffset', 'asciiSum', 'atbash', 'autokey', 'b64urlJson', 'babaiCvp',
+  'bacon', 'balancedTernary', 'base100', 'base16', 'base32', 'base36', 'base45', 'base58',
+  'base62', 'base64', 'base85', 'base91', 'base92', 'beaufort', 'beaufortVariant', 'bifid',
+  'big5', 'binPad', 'bitReverse', 'blake2b', 'blake2s', 'blowfish', 'braille', 'bsdSum',
+  'byteReverse', 'caesar', 'cborEncode', 'chacha20', 'chineseNum', 'color', 'columnar', 'crc16',
+  'crc16Arc', 'crc16CcittTrue', 'crc16Modbus', 'crc16Xmodem', 'crc32', 'crockford32', 'des', 'des3',
+  'diffTool', 'gifFrames', 'gronsfeld', 'hmac', 'htmlEntity', 'md4', 'md5', 'morse',
+  'playfair', 'punycode', 'quotedPrintable', 'rabbit', 'railFence', 'rc4', 'ripemd160', 'rot13',
+  'rot47', 'rsaCrt', 'rsaModpow', 'salsa20', 'scytale', 'sha1', 'sha256', 'sha3',
+  'sha384', 'sha512', 'sm3', 'sm4', 'tea', 'unicodeEscape', 'url', 'uuencode',
+  'vigenere', 'whirlpool', 'xor', 'xtea', 'xxencode', 'xxtea', 'z85'
+]);
 const encoder = new TextEncoder();
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const fail = (code, message) => { throw inputError(code, message); };
