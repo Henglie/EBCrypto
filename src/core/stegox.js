@@ -236,6 +236,7 @@ register({
   name: "StegoX 深层隐写",
   desc: "StegoX 容器兼容：编码把文本藏进任意载体文件（AES-256-GCM + PBKDF2-SHA512 25 万次，尾部 48B 头）；解码自动识别内存/流式两种格式并取出隐藏文本与文件。口令模式；密钥文件模式待多槽位控件",
   acceptsBytes: true,
+  autoRun: false, // 逐键不自动运算：口令/文本输入完再点「转换」
   params: [
     { sensitive: true, key: "pwd", label: "口令（编码/解码一致）", type: "text", default: "", placeholder: "与加密时完全一致" },
     { key: "text", dir: "encode", label: "要隐藏的文本（仅编码）", type: "textarea", default: "", placeholder: "留空则只能生成空载荷" },
@@ -243,12 +244,13 @@ register({
   encode: async (input, p = {}) => {
     const pwd = String(p.pwd ?? "");
     if (!pwd) throw new Error("StegoX：请填写口令");
-    const carrier = _inputBytes(input);
+    const carrier = p.rawBytes ? toU8(p.rawBytes) : _inputBytes(input);
     if (!carrier.length) throw new Error("StegoX：请先载入载体文件（图片/文档/任意文件）");
     const text = String(p.text ?? "");
     const out = await stegoxEmbed({ carrier, keySource: pwd, text });
     return {
       bytes: out,
+      files: [{ name: "stegox_container.bin", mime: "application/octet-stream", bytes: out }],
       text: [
         "=== StegoX 隐写（内存格式）===",
         `载体 ${carrier.length} B + 载荷 ${out.length - carrier.length} B（含 48 B 尾部头）`,
@@ -260,7 +262,7 @@ register({
   decode: async (input, p = {}) => {
     const pwd = String(p.pwd ?? "");
     if (!pwd) throw new Error("StegoX：请填写口令");
-    const data = _inputBytes(input);
+    const data = p.rawBytes ? toU8(p.rawBytes) : _inputBytes(input);
     const r = await stegoxExtract({ data, keySource: pwd });
     const lines = [
       "=== StegoX 提取 ===",
