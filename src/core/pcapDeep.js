@@ -854,7 +854,7 @@ function pcapDnsTunnelRun(text, p = {}) {
     lines.push("");
     lines.push(`--- ${ag.sideLabel} 侧拼接数据流 ---`);
     lines.push(`拼接总长: ${ag.aggregate.length} 字符`);
-    lines.push(ag.aggregate.length > 512 ? ag.aggregate.slice(0, 512) + " …" : ag.aggregate);
+    lines.push(ag.aggregate);
     if (ag.aggregate.length > 0) {
       files.push({ name: `dns_${ag.sideLabel}_labels.txt`, mime: "text/plain", bytes: new TextEncoder().encode(ag.aggregate) });
     }
@@ -870,7 +870,7 @@ function pcapDnsTunnelRun(text, p = {}) {
         for (const a of attempts) {
           const flag = a.printableRatio > 0.85 ? "  ★可读" : "";
           lines.push(`[${a.name}] ${a.bytes.length} 字节 (可打印率 ${(a.printableRatio * 100).toFixed(0)}%)${flag}`);
-          lines.push(`  ${a.ascii.length > 512 ? a.ascii.slice(0, 512) + " …" : a.ascii}`);
+          lines.push(`  ${a.ascii}`);
           files.push({ name: `dns_${ag.sideLabel}_${a.name}.bin`, mime: "application/octet-stream", bytes: a.bytes });
         }
       }

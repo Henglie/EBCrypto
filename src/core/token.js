@@ -203,7 +203,7 @@ function jweIdentify(token) {
   lines.push("CEK 加密密钥(base64url, " + ekB64.length + " 字符): " + (ekB64 || "(空)"));
   lines.push("IV 初始向量(base64url, " + ivB64.length + " 字符): " + (ivB64 || "(空)"));
   lines.push("密文(base64url, " + ctB64.length + " 字符): " +
-    (ctB64 ? ctB64.slice(0, 40) + (ctB64.length > 40 ? "…" : "") : "(空)"));
+    (ctB64 || "(空)"));
   lines.push("认证标签(base64url, " + tagB64.length + " 字符): " + (tagB64 || "(空)"));
   if (header) {
     lines.push("");
@@ -235,21 +235,21 @@ function pasetoIdentify(token) {
   try { payloadRaw = b64urlDecodeText(payloadB64); } catch { payloadRaw = null; }
   if (payloadRaw && typeof payloadRaw !== "string") payloadRaw = payloadRaw.text || ""; // 非文本载荷按 hex 文本展示
   lines.push("Payload(base64url, " + payloadB64.length + " 字符): " +
-    (payloadB64 ? payloadB64.slice(0, 40) + (payloadB64.length > 40 ? "…" : "") : "(空)"));
+    (payloadB64 || "(空)"));
   if (payloadRaw) {
     const pj = parseJsonSafe(payloadRaw);
     if (pj.ok) lines.push("Payload 解码(JSON): " + prettyJson(pj.value));
-    else lines.push("Payload 解码(文本): " + payloadRaw.slice(0, 60) + (payloadRaw.length > 60 ? "…" : ""));
+    else lines.push("Payload 解码(文本): " + payloadRaw);
   }
   if (footerB64 !== undefined) {
     lines.push("Footer(base64url, " + footerB64.length + " 字符): " +
-      (footerB64 ? footerB64.slice(0, 40) + (footerB64.length > 40 ? "…" : "") : "(空)"));
+      (footerB64 || "(空)"));
     let footerRaw = null;
     try { footerRaw = b64urlDecodeText(footerB64); } catch { footerRaw = null; }
     if (footerRaw && typeof footerRaw !== "string") footerRaw = footerRaw.text || "";
     if (footerRaw) {
       const fj = parseJsonSafe(footerRaw);
-      lines.push("Footer 解码: " + (fj.ok ? prettyJson(fj.value) : footerRaw.slice(0, 60)));
+      lines.push("Footer 解码: " + (fj.ok ? prettyJson(fj.value) : footerRaw));
     }
   } else {
     lines.push("Footer: (无)");

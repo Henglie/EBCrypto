@@ -216,7 +216,7 @@ function oleExtractRun(text, p) {
   const budget = { total: 0, max: maxBytes, skipped: 0 };
   for (const en of r.entries) {
     const tag = en.type === "storage" ? "[目录] " : "[流]   ";
-    const extra = en.type === "stream" ? `  ${en.size} 字节${en.sha256 ? "  SHA-256 " + en.sha256.slice(0, 16) + "…" : ""}` : "";
+    const extra = en.type === "stream" ? `  ${en.size} 字节${en.sha256 ? "  SHA-256 " + en.sha256 : ""}` : "";
     lines.push(`  ${tag}${en.path}${extra}`);
     if (en.type === "stream" && r.streams.has(en.path)) {
       if (budget.total + en.size <= budget.max) {

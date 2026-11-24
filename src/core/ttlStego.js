@@ -72,7 +72,7 @@ function ttlDecode(text) {
   const lines = [];
   lines.push("=== TTL 隐写解码 ===");
   lines.push("TTL 值个数: " + nums.length + "（每 4 个拼 1 字节）");
-  lines.push("比特流(" + bitStr.length + " bit): " + (bitStr.length > 256 ? bitStr.slice(0, 256) + "…" : bitStr));
+  lines.push("比特流(" + bitStr.length + " bit): " + bitStr);
   if (leftover) lines.push("⚠ 末尾剩 " + leftover + " bit 不足 1 字节，已忽略（TTL 个数应为 4 的倍数）");
   lines.push("");
   lines.push("--- 明文 ---");

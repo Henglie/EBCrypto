@@ -83,7 +83,7 @@ export default {
     tips: [
       "命中 0 条先降最小长度。",
       "与 extractHashes（专扫哈希串）/ flagExtract（专扫 flag 格式）互补，本 op 是通用版。",
-      "报告超 5000 条时截断展示，计数仍全量。",
+      "报告列出全部匹配的字符串。",
     ],
     aka: ["strings", "strings 提取", "字符串提取", "可打印字符串", "printable strings", "strings 命令", "提取字符串", "strings 工具", "二进制字符串提取", "字符串搜索", "binwalk strings", "逆向 strings", "utf16 strings", "字符串分析", "strings extract"],
   },

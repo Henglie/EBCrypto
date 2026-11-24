@@ -16,8 +16,7 @@
  * - encoding   ascii / utf16le / both，默认 ascii
  * - showOffset 每行前缀偏移（0x00000010 十六进制 8 位）
  *
- * 输出：报告（模式 / 阈值 / 命中数 + 逐条字符串）。命中极多时截断展示（默认
- * 上限 5000 行，计数仍为全量），防大文件刷爆渲染。
+ * 输出：报告（模式 / 阈值 / 命中数 + 全部匹配的字符串）。
  *
  * 输入：text 为 hex / base64 / 原始二进制字符串（自动识别），或 p.rawBytes 直传。
  *
@@ -25,8 +24,6 @@
  * UTF-16LE「flag」/ both 合并排序 / 偏移格式 / 空输入）。
  */
 import { register } from "./registry.js";
-
-const MAX_DISPLAY = 5000; // 报告最多列 5000 条（计数仍全量）
 
 const printable = (b) => b >= 0x20 && b <= 0x7e;
 
@@ -169,14 +166,13 @@ function stringsExtractRun(text, p) {
   const encName = enc === "utf16le" ? "UTF-16LE" : enc === "both" ? "ASCII + UTF-16LE" : "ASCII";
   const lines = [];
   lines.push(`字符串提取（模式 ${encName}，最小长度 ${minLen}，输入 ${data.length} 字节）`);
-  lines.push(`命中 ${hits.length} 条${hits.length > MAX_DISPLAY ? `（仅展示前 ${MAX_DISPLAY} 条）` : ""}`);
+  lines.push(`命中 ${hits.length} 条`);
   lines.push("");
   if (hits.length === 0) {
     lines.push("未找到满足长度的可打印字符串。建议：降低最小长度或换编码模式（Windows 来源优先试 UTF-16LE）。");
     return lines.join("\n");
   }
-  const cap = Math.min(hits.length, MAX_DISPLAY);
-  for (let i = 0; i < cap; i++) {
+  for (let i = 0; i < hits.length; i++) {
     lines.push(showOff ? `0x${hits[i].offset.toString(16).padStart(8, "0")}  ${hits[i].s}` : hits[i].s);
   }
   return lines.join("\n");

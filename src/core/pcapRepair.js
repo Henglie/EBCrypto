@@ -380,13 +380,13 @@ function pcapRepairRun(text, p) {
  //       ③无 SHB 但已知块整链干净走完 → pcapng（证据强于经典链碰巧可解）
   const damagedShb = !isPcapngShbMagic(b) && b.length >= 28 && (u32(b, 4, true) === 28 || u32(b, 4, false) === 28) && bomEndian(b) !== null;
   if (isPcapngShbMagic(b) || damagedShb || pcapngNoShbCandidate(b)) {
-    const r = pcapngRepairRun(b);
+      const r = pcapngRepairRun(b);
     L.length = 0;
     L.push(r.text);
     if (r.hex !== null) {
       L.push("");
       L.push("--- 修复后 pcapng（hex，可复制喂给 pcapParse/pcapng 解析器）---");
-      L.push(r.hex.length > 200000 ? r.hex.slice(0, 200000) + "\n…(hex 过长已截断，实际 " + (r.hex.length / 2) + " 字节)" : r.hex);
+      L.push(r.hex);
     }
     return L.join("\n");
   }
@@ -533,7 +533,7 @@ function pcapRepairRun(text, p) {
   L.push("");
   L.push("--- 修复后 pcap（hex，可复制喂给 pcapParse 解析）---");
   const outHex = toHex(out);
-  L.push(outHex.length > 200000 ? outHex.slice(0, 200000) + "\n…(hex 过长已截断，实际 " + out.length + " 字节)" : outHex);
+  L.push(outHex);
 
   return L.join("\n");
 }

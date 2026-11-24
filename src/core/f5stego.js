@@ -1020,7 +1020,7 @@ function f5stegoRun(text, p) {
 
  // ---- 输出 ----
   L.push("--- 提取结果 ---");
-  L.push(`● Hex（前 ${maxHex} 字节）:`);
+  L.push(`● Hex 预览（前 ${maxHex} 字节；原始载荷请下载）:`);
   L.push("  " + bytesToHex(payload, maxHex));
   L.push("");
 
@@ -1033,7 +1033,7 @@ function f5stegoRun(text, p) {
     L.push("  " + asciiPrev);
     L.push("");
     L.push("● UTF-8 解读:");
-    L.push("  " + (utf8Str.length > 2048 ? utf8Str.slice(0, 2048) + " …" : utf8Str));
+    L.push("  " + utf8Str);
     L.push("");
   }
 
@@ -1054,7 +1054,8 @@ function f5stegoRun(text, p) {
   L.push("  · decode 方向：纯本地计算、零外发。");
   L.push("  · 算法忠实移植自 f5stegojs（desudesutalk, MIT）；仅匹配该系嵌入。");
   L.push("  · 无隐写/密钥错误时，提取到的是伪随机噪声，长度头会显得离谱——据此判断成败。");
-  return L.join("\n");
+  const report = L.join("\n");
+  return payload.length ? { text: report, files: [{ name: "f5-payload.bin", mime: "application/octet-stream", bytes: payload }] } : report;
 }
 
 // ============================================================

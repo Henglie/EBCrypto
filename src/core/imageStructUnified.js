@@ -183,7 +183,7 @@ function analyzePng(bytes) {
     if (pc.texts.length) {
       lines.push("文本块:");
       for (const t of pc.texts) {
-        const val = t.val.length > 200 ? t.val.slice(0, 200) + " …" : t.val;
+        const val = t.val;
         lines.push(`  ${t.type} "${t.kw}" = ${val}`);
       }
     }
@@ -281,7 +281,7 @@ function analyzePng(bytes) {
       for (const t of exif.tags) lines.push(`  ${t.name}: ${t.value}`);
     }
     if (xmp) {
-      const x = xmp.length > 600 ? xmp.slice(0, 600) + " …" : xmp;
+      const x = xmp;
       lines.push("XMP:");
       lines.push("  " + x.replace(/\n/g, "\n  "));
     }
@@ -329,7 +329,7 @@ function analyzeJpeg(bytes) {
       for (const t of exif.tags) lines.push(`  ${t.name}: ${t.value}`);
     }
     if (xmp) {
-      const x = xmp.length > 600 ? xmp.slice(0, 600) + " …" : xmp;
+      const x = xmp;
       lines.push("XMP:");
       lines.push("  " + x.replace(/\n/g, "\n  "));
     }

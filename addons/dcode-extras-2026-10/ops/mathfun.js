@@ -210,7 +210,7 @@ export const OPS = [
       const isPal = (x) => { const s = x.toString(); return s === [...s].reverse().join(""); };
       while (!isPal(cur) && steps < lim) { cur += rev(cur); steps++; }
       if (isPal(cur)) return `${n} 经 ${steps} 步得到回文 ${cur}\n（上限 ${lim} 步内）`;
-      return `${n} 在 ${lim} 步内未得到回文（当前值 ${cur.toString().slice(0, 40)}${cur.toString().length > 40 ? "…" : ""}）——Lychrel 候选`;
+      return `${n} 在 ${lim} 步内未得到回文（当前值 ${cur}）——Lychrel 候选`;
     }, [P("n", "n", "如 89 或 196"), P("max", "步数上限（受步数预算保护）", "500")]),
 
   runOp("dcode-extras-2026-10/math-pascal", CAT, "杨辉三角（Pascal）", "输出前 N 行（BigInt 精确），附行和校验 2ⁿ",
@@ -485,9 +485,10 @@ export const OPS = [
       if (!Number.isInteger(steps) || steps < 0) throw new Error("步数需为非负整数");
       assertBudget("chars", seed.length, "外观数列种子");
       assertBudget("steps", steps * Math.max(1, seed.length), "外观数列步数×种子长度");
-      assertBudget("chars", steps * 110 + seed.length, "外观数列轨迹输出");
       let cur = seed;
       const seq = [cur];
+      let outputChars = seed.length + "a(0) = ".length;
+      assertBudget("chars", outputChars, "外观数列轨迹输出");
       for (let s = 0; s < steps; s++) {
         assertBudget("chars", Math.ceil(cur.length * 2.1), `外观数列第 ${s + 1} 步中间项`);
         let next = "", i = 0;
@@ -496,9 +497,11 @@ export const OPS = [
           next += (j - i) + cur[i]; i = j;
         }
         assertBudget("chars", next.length, `外观数列第 ${s + 1} 步`);
+        outputChars += next.length + `\na(${s + 1}) = `.length;
+        assertBudget("chars", outputChars, "外观数列轨迹输出");
         cur = next; seq.push(cur);
       }
-      return seq.map((s, i) => `a(${i}) = ${s.length > 80 ? s.slice(0, 80) + `…（${s.length} 位）` : s}`).join("\n");
+      return seq.map((s, i) => `a(${i}) = ${s}`).join("\n");
     }, [P("seed", "种子", "1"), P("steps", "步数（受预算保护）", "10")]),
 
   runOp("dcode-extras-2026-10/math-digitsum", CAT, "位和与数字根", "各位数字和 + 反复折叠成一位数字根（9875 → 位和 29 → 数字根 2）",

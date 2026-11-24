@@ -466,19 +466,18 @@ export function solveVigenere(text, p = {}) {
   for (const x of r.lengthRows) {
     const tag = x.tier > 0 ? "  ← flag 结构" : "";
     lines.push(`L=${String(x.L).padStart(2)}  密钥=${x.key}  适应度=${x.raw.toFixed(3)}  模式=${modeLabel(x)}${tag}`);
-    lines.push(`      ${x.plain.slice(0, 220)}`);
+    lines.push(`      ${x.plain}`);
   }
   if (!r.lengthRows.length) lines.push("（无）");
 
   if (r.cribRows.length) {
     lines.push("");
     lines.push("--- crib / flag 前缀命中候选（按适应度排序）---");
-    for (const x of r.cribRows.slice(0, 24)) {
+    for (const x of r.cribRows) {
       const tag = x.tier > 0 ? "  ← flag 结构" : "";
       lines.push(`L=${String(x.L).padStart(2)}  密钥=${x.key}  适应度=${x.raw.toFixed(3)}  模式=${modeLabel(x)} [${x.source.slice(5)}]${tag}`);
-      lines.push(`      ${x.plain.slice(0, 220)}`);
+      lines.push(`      ${x.plain}`);
     }
-    if (r.cribRows.length > 24) lines.push(`…（共 ${r.cribRows.length} 条 crib 候选，已截断显示）`);
   }
 
   lines.push("");

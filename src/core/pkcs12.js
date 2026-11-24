@@ -631,7 +631,7 @@ export async function parsePfx(der, password) {
         const macKey = await pkcs12Kdf(3, passBmp, macSalt, iter, hp.u, oidKey(macAlg.oid));
         const mac = await hmacHash(hp.subtle, macKey, authContent);
         const okMac = mac.length === expected.length && mac.every((b, i) => b === expected[i]);
-        lines.push(`macData：${hp.subtle.replace("-", "")}，迭代 ${iter}，salt ${bytesToHex(macSalt).slice(0, 32)}${macSalt.length > 16 ? "…" : ""}`,
+        lines.push(`macData：${hp.subtle.replace("-", "")}，迭代 ${iter}，salt ${bytesToHex(macSalt)}`,
           `MAC 校验：${okMac ? "✓ 通过" : "✗ 不一致（口令可能错误或数据被改）"}`);
       }
     }

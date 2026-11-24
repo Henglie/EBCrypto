@@ -151,8 +151,8 @@ export default {
   mcNbtView: {
     what: "Minecraft NBT 树查看器：浏览器版 NBTExplorer，把任意 Minecraft Java 版 NBT（level.dat/*.dat/playerdata/结构 .nbt 等）解压后完整转储为缩进折叠的可读文本树。支持路径过滤定位子树。",
     principle:
-      "复用大端序 NBT 解析器，支持 gzip/zlib/裸 NBT 三种存储自动识别。解析后递归转储每个节点：显示 tag 类型名（TAG_Compound/TAG_List/TAG_String/TAG_Long…）、key、值；List 标元素类型和长度；Long/LongArray 用 BigInt 原样打印不丢精度；大数组截断显示前 N 项。路径过滤支持 `Data.Player.Inventory` 或 `a[0].b` 语法，只转储命中的子树。",
-    usage: "输入 NBT 文件（hex/base64/拖文件），可填 path 定位子树（如 Data.Player.Inventory），调 maxArray/maxDepth 控制截断和深度。输出完整或子树的文本树。",
+      "复用大端序 NBT 解析器，支持 gzip/zlib/裸 NBT 三种存储自动识别。列出标签类型、键与完整值；List 标明元素类型和长度；Long/LongArray 用 BigInt 保证精度。路径过滤只转储命中的子树。",
+    usage: "输入 NBT 文件（Hex/Base64 或拖入文件）。可填 `path` 定位子树，如 `Data.Player.Inventory` 或 `a[0].b`。若超过节点预算，工具会报错，可缩小路径范围后重试。",
     examples: [
       { in: "level.dat 字节", param: "path=Data.GameRules", out: "TAG_Compound 'GameRules': ... 各规则键值树", desc: "路径过滤只看 GameRules 子树" },
     ],

@@ -5,7 +5,7 @@
  * playerdata / 结构方块 .nbt / hotbar.nbt 等）解压后完整转储为缩进折叠的
  * 可读文本树。每个节点显示 tag 类型名（TAG_Compound / TAG_List / TAG_String
  * / TAG_Long / …）、key、值；List 显示元素类型与长度；Long / LongArray 用
- * BigInt 原样打印不丢精度；大数组（Byte/Int/LongArray）截断显示前 N 项 + 省略。
+ * BigInt 原样打印不丢精度；数组逐项输出，树超过渲染预算时明确报错。
  *
  * 复用 mcSave.js 的解析器（parseNBT / decompressAndParseNBT，自写大端序 NBT
  * 走原生 DecompressionStream 解 gzip/zlib/裸 NBT），复用 pcapParse.js 的
@@ -102,8 +102,7 @@ function resolvePath(root, pathStr) {
 // ============================================================
 function dumpNode(t, key, v, indent, depth, opts, lines, counter) {
   if (++counter.n > opts.maxNodes) {
-    if (!counter.capped) { lines.push("  ".repeat(indent) + "… （已达节点上限 " + opts.maxNodes + "，其余省略）"); counter.capped = true; }
-    return;
+    throw new Error(`NBT 节点数超过 ${opts.maxNodes}，未生成部分报告。请用路径过滤缩小范围。`);
   }
   const pad = "  ".repeat(indent);
   const keyStr = key === null || key === undefined ? "" : (typeof key === "number" ? `[${key}]` : `'${key}'`);
@@ -127,26 +126,19 @@ function dumpNode(t, key, v, indent, depth, opts, lines, counter) {
       return;
     case 7: { // ByteArray（有符号 byte）
       const n = v.length;
-      const lim = Math.min(n, opts.maxArray);
       const parts = [];
-      for (let i = 0; i < lim; i++) parts.push(toSignedByte(v[i]));
-      const more = n > lim ? ` … (+${n - lim} 项省略)` : "";
-      lines.push(`${pad}${label}: ${n} 项 [${parts.join(", ")}${more}]`);
+      for (let i = 0; i < n; i++) parts.push(toSignedByte(v[i]));
+      lines.push(`${pad}${label}: ${n} 项 [${parts.join(", ")}]`);
       return;
     }
     case 11: { // IntArray
       const n = v.length;
-      const lim = Math.min(n, opts.maxArray);
-      const more = n > lim ? ` … (+${n - lim} 项省略)` : "";
-      lines.push(`${pad}${label}: ${n} 项 [${v.slice(0, lim).join(", ")}${more}]`);
+      lines.push(`${pad}${label}: ${n} 项 [${v.join(", ")}]`);
       return;
     }
     case 12: { // LongArray（BigInt[]）— 原样打印不丢精度
       const n = v.length;
-      const lim = Math.min(n, opts.maxArray);
-      const shown = v.slice(0, lim).map((x) => x.toString());
-      const more = n > lim ? ` … (+${n - lim} 项省略)` : "";
-      lines.push(`${pad}${label}: ${n} 项 [${shown.join(", ")}${more}]`);
+      lines.push(`${pad}${label}: ${n} 项 [${v.join(", ")}]`);
       return;
     }
     case 9: { // List
@@ -154,17 +146,13 @@ function dumpNode(t, key, v, indent, depth, opts, lines, counter) {
       const n = v.length;
       lines.push(`${pad}${label}: ${n} 项 <${tagName(et)}>`);
       if (n === 0) return;
-      if (depth >= opts.maxDepth) { lines.push(`${pad}  … （已达深度上限 ${opts.maxDepth}）`); return; }
-      const lim = Math.min(n, opts.maxArray);
-      for (let i = 0; i < lim; i++) dumpNode(et, i, v[i], indent + 1, depth + 1, opts, lines, counter);
-      if (n > lim) lines.push(`${pad}  … (+${n - lim} 项省略)`);
+      for (let i = 0; i < n; i++) dumpNode(et, i, v[i], indent + 1, depth + 1, opts, lines, counter);
       return;
     }
     case 10: { // Compound
       const keys = Object.keys(v).filter((k) => k !== "__nbtCompound");
       lines.push(`${pad}${label}: ${keys.length} 项`);
       if (keys.length === 0) return;
-      if (depth >= opts.maxDepth) { lines.push(`${pad}  … （已达深度上限 ${opts.maxDepth}）`); return; }
       for (const k of keys) dumpNode(v[k].__t, k, v[k].v, indent + 1, depth + 1, opts, lines, counter);
       return;
     }
@@ -205,21 +193,15 @@ async function mcNbtViewRun(text, p = {}) {
 
   const { root, note } = parsed;
 
- // 参数归一
-  let maxArray = parseInt(p.maxArray, 10);
-  if (!Number.isFinite(maxArray) || maxArray < 1) maxArray = 64;
-  let maxDepth = parseInt(p.maxDepth, 10);
-  if (!Number.isFinite(maxDepth) || maxDepth < 1) maxDepth = 64;
-  const opts = { maxArray, maxDepth, maxNodes: 200000 };
+  const opts = { maxNodes: 200000 };
 
   const lines = [];
   lines.push("=== Minecraft NBT 树查看器（Java 版大端序 NBT）===");
   lines.push(`解压: ${note}`);
   lines.push(`根 tag: ${tagName(root.type)}${root.name ? ` "${root.name}"` : "（空名）"}`);
-  lines.push(`数组截断上限: ${maxArray} 项 / 最大深度: ${maxDepth}`);
 
   const pathStr = (p.path && String(p.path).trim()) ? String(p.path).trim() : "";
-  const counter = { n: 0, capped: false };
+  const counter = { n: 0 };
 
   if (pathStr) {
     const r = resolvePath(root, pathStr);
@@ -251,14 +233,12 @@ register({
   desc: "浏览器版 NBTExplorer：把任意 Minecraft Java 版 NBT（level.dat / *.dat / " +
     "playerdata / 结构 .nbt 等，gzip/zlib/裸均可）解压后完整转储为缩进折叠的可读文本树。" +
     "显示每节点 tag 类型名 / key / 值，List 标元素类型与长度，Long/LongArray 用 BigInt 不丢精度，" +
-    "大数组截断显示。支持路径过滤定位子树。复用 mcSave 的 NBT 解析器，纯前端零外发",
+    "数组完整列出；支持路径过滤定位子树。复用 mcSave 的 NBT 解析器，纯前端零外发",
   params: [
     { key: "inputEnc", label: "输入编码", type: "select", default: "auto", options: [
       { value: "auto", label: "自动识别" }, { value: "hex", label: "Hex 十六进制" }, { value: "base64", label: "Base64" },
     ] },
     { key: "path", label: "路径过滤（可空，如 Data.Player.Inventory）", type: "text", default: "", placeholder: "Data.Player.Inventory 或 a[0].b" },
-    { key: "maxArray", label: "数组截断上限", type: "number", default: 64 },
-    { key: "maxDepth", label: "最大深度", type: "number", default: 64 },
   ],
   run: mcNbtViewRun,
   acceptsBytes: true,

@@ -81,7 +81,7 @@ export const PACKS = [
   },
   {
     id: "edu-en",
-    bytes: 1477610,
+    bytes: 1477588,
     entries: [
       { name: "/src/core/edu-en/edu-ana-crypto-new.en.js", bytes: 34337 },
       { name: "/src/core/edu-en/edu-ana-freq.en.js", bytes: 16830 },
@@ -91,7 +91,7 @@ export const PACKS = [
       { name: "/src/core/edu-en/edu-ana-rest.en.js", bytes: 9550 },
       { name: "/src/core/edu-en/edu-ana-rsa1.en.js", bytes: 7800 },
       { name: "/src/core/edu-en/edu-ana-rsa2.en.js", bytes: 12653 },
-      { name: "/src/core/edu-en/edu-ana-serial.en.js", bytes: 13936 },
+      { name: "/src/core/edu-en/edu-ana-serial.en.js", bytes: 14164 },
       { name: "/src/core/edu-en/edu-ana-tools.en.js", bytes: 7571 },
       { name: "/src/core/edu-en/edu-ana-tools2.en.js", bytes: 13665 },
       { name: "/src/core/edu-en/edu-analysis-crc32rev.en.js", bytes: 3566 },
@@ -122,7 +122,7 @@ export const PACKS = [
       { name: "/src/core/edu-en/edu-fancy-new.en.js", bytes: 2918 },
       { name: "/src/core/edu-en/edu-fancy-rest.en.js", bytes: 52921 },
       { name: "/src/core/edu-en/edu-fancy-roar.en.js", bytes: 3562 },
-      { name: "/src/core/edu-en/edu-forensic-new.en.js", bytes: 36715 },
+      { name: "/src/core/edu-en/edu-forensic-new.en.js", bytes: 36465 },
       { name: "/src/core/edu-en/edu-gifshuffle.en.js", bytes: 153 },
       { name: "/src/core/edu-en/edu-hash-cityhash.en.js", bytes: 4502 },
       { name: "/src/core/edu-en/edu-hash-xxhash.en.js", bytes: 3397 },

@@ -48,10 +48,35 @@ import subprocess
 import threading
 import webbrowser
 import functools
+import datetime
+import tempfile
+import traceback
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import unquote, urlsplit
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
+
+def _failure_log_path():
+    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    return os.path.join(ROOT, "ebctf-launcher-error-%s.log" % stamp)
+
+
+def _write_failure_log(stage, detail):
+    """只在启动失败/未捕获异常时写一份诊断；成功启动不产生任何日志文件。"""
+    try:
+        path = _failure_log_path()
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("码小妹 · EBCrypto 启动器诊断\n")
+            f.write("时间: %s\n" % datetime.datetime.now().isoformat(timespec="seconds"))
+            f.write("阶段: %s\n" % stage)
+            f.write("平台: %s\n" % sys.platform)
+            f.write("Python: %s\n" % sys.version.replace("\n", " "))
+            f.write("项目根: %s\n" % ROOT)
+            f.write("\n%s\n" % detail)
+        return path
+    except Exception:
+        return ""
+
 
 # Windows 控制台默认 GBK，印中文/符号（⚠、·）会 UnicodeEncodeError。
 # 无条件把 stdout/stderr 重配 UTF-8，文案原样不改。reconfigure 是 Python 3.7+。
@@ -197,6 +222,20 @@ class Handler(SimpleHTTPRequestHandler):
 
 # ============================ 服务状态（可重启） ============================
 
+class _QuietHTTPD(ThreadingHTTPServer):
+    """客户端主动断连（刷新/取消/关页）是常态：不打印 traceback，也不写日志。
+    只有真正的服务端异常才落一份诊断，避免刷屏和残留文件。"""
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        exc = sys.exc_info()[1]
+        if isinstance(exc, (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)):
+            return
+        _log = _write_failure_log("http-handler", traceback.format_exc())
+        msg = "服务处理异常" + ("（诊断：%s）" % _log if _log else "")
+        print(msg)
+
+
 class Service:
     """静态服务 + 本地桥的可重启持有者。
 
@@ -259,7 +298,7 @@ class Service:
                 port += 1
                 continue
             try:
-                httpd = ThreadingHTTPServer(("127.0.0.1", port), handler)
+                httpd = _QuietHTTPD(("127.0.0.1", port), handler)
                 break
             except OSError:
                 port += 1
@@ -469,11 +508,10 @@ def _panel_render(svc):
     static_txt, bridge_txt = _panel_status_lines(svc)
     print("")
     print("=" * 69)
-    print(" 恒烈CTF编码工具箱 · 启动器（Python 通用版）")
+    print(" 码小妹 · EBCrypto · 启动器（Python 通用版）")
     print("=" * 69)
     print(" 静态服务 : %s" % static_txt)
     print(" 本地桥   : %s" % bridge_txt)
-    print(" 项目根   : %s" % ROOT)
     if svc.last_error:
         print(" 最近错误 : %s" % svc.last_error)
     print("=" * 69)
@@ -509,9 +547,10 @@ def _panel_restart(svc):
         else:
             print(" 本地桥  未挂载")
     else:
-        print(" 启动失败：")
-        print("   %s" % svc.last_error)
-        print(" 可先按 2 清除占用端口，再按 1 重试。")
+        _log = _write_failure_log("start-failed", svc.last_error or "(无详细信息)")
+        print(" 启动失败。可先按 2 清除占用端口，再按 1 重试。")
+        if _log:
+            print(" 诊断已写入：%s" % _log)
 
 
 def _panel_clear_port(svc):
@@ -803,7 +842,8 @@ def main():
     if not started:
         # 与原生版同一口径：交互时进面板把原因摆出来（不闪退）；非交互保持旧行为。
         if not (force_panel or (not no_panel and _stdin_is_tty())):
-            print("启动失败：%s" % svc.last_error)
+            _log = _write_failure_log("start-failed", svc.last_error or "(无详细信息)")
+            print("启动失败。" + (" 诊断：%s" % _log if _log else ""))
             sys.exit(1)
     if started and not svc.no_open:
         try:
@@ -844,4 +884,13 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except KeyboardInterrupt:
+        raise
+    except Exception:
+        _log = _write_failure_log("uncaught", traceback.format_exc())
+        print("启动器异常退出" + ("，诊断已写入：%s" % _log if _log else "。"))
+        sys.exit(1)

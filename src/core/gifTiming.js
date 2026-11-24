@@ -187,7 +187,7 @@ function gifTimingRun(text, p) {
     const thr = Math.round(p && p.threshold != null ? p.threshold : 5);
     let bits = "";
     for (const v of cs) bits += v >= thr ? "1" : "0";
-    const shownBits = bits.length > 512 ? bits.slice(0, 512) + `...(+${bits.length - 512} 位)` : bits;
+    const shownBits = bits;
     lines.push(`位序列: ${shownBits}`);
     const byteArr = bitsToBytes(bits);
     if (byteArr.length === 0) {

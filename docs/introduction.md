@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="../public/icons/logo.png" width="120" height="120" alt="恒烈 CTF 编码工具箱" />
+  <img src="../public/icons/logo.png" width="120" height="120" alt="码小妹 · EBCrypto" />
 </p>
 
-<h1 align="center">恒烈 CTF 编码工具箱 · EBCTFCodeBox</h1>
+<h1 align="center">码小妹 · EBCrypto</h1>
 
 <p align="center">
-  纯前端、零外发的 CTF 编解码 / 加解密 / 隐写分析工具箱<br/>
+  纯前端、零外发的编解码 / 加解密 / 隐写分析工具箱<br/>
   <b>一千多种注册操作,核心编解码在浏览器本地运行,不上传用户输入</b>
 </p>
 

@@ -1245,6 +1245,18 @@ def _extension_assets_missing():
     return [rel for rel in EXTENSION_REQUIRED_FILES
             if not os.path.isfile(os.path.join(ROOT, rel))]
 
+class _QuietBridgeHTTPD(ThreadingHTTPServer):
+    """桥的客户端断连同样不刷 traceback；真异常才打印。"""
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        exc = sys.exc_info()[1]
+        if isinstance(exc, (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)):
+            return
+        import traceback as _tb
+        _tb.print_exc()
+
+
 def create_extension_server(web_origins=()):
     """启动本地桥。扩展桥文件缺失/导入失败 → 降级为纯 Python 桥（/api/* 可用），
     明确提示而不是启动即崩溃。端口占用仍按原逻辑抛 OSError（不静默换端口）。"""
@@ -1268,7 +1280,7 @@ def create_extension_server(web_origins=()):
         "[bridge] 警告：扩展桥必需文件缺失或不可用（%s），已降级为纯 Python 桥；"
         "/api/* 正常，/v1/* 不可用。请补齐发行包中的 mcp/extension_bridge.py、"
         "mcp/extension_worker.mjs、mcp/worker/csp_safe_ops.json。\n" % "、".join(missing))
-    return ThreadingHTTPServer(("127.0.0.1", 8181), BridgeHandler)
+    return _QuietBridgeHTTPD(("127.0.0.1", 8181), BridgeHandler)
 
 
 def main():

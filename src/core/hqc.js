@@ -30,7 +30,7 @@
  *   解密纠错注入、重量断言见文件尾注释与冒烟记录。
  */
 
-import { register } from "./registry.js";
+import { register, registerAlias } from "./registry.js";
 import { keccakF1600 } from "./hash.js";
 import { randomBytes as randBytes } from "./randSource.js"; // 统一随机源（默认档 system 逐字节零回归）
 
@@ -746,9 +746,72 @@ register({
   },
 });
 
+const hqcEncRun = (t, p = {}) => {
+  const set = getSet(p.set);
+  if (!t || !String(t).length) throw new Error(`请输入明文（≤ ${set.k} 字节，超长先自行对称压缩/分片）`);
+  const ptBytes = new TextEncoder().encode(String(t));
+  if (ptBytes.length > set.k) {
+    throw new Error(`明文过长：${set.id} 的 k=${set.k} 字节，当前 ${ptBytes.length} 字节。HQC 是 KEM——任意长数据请用 SS 作对称密钥（如 AES-CTR）先行封装`);
+  }
+  const m = new Uint8Array(set.k);
+  m.set(ptBytes); // 右补零到 k 字节（规范 m 恰为 k 字节）
+  const r = hqcEncapsBytes(p.set, p.ek, bytesToHex(m), p.salt);
+  return {
+    text: [
+      `参数集: ${r.set.id}`,
+      `明文 m (${set.k} B，右补零): ${bytesToHex(m)}`,
+      `密文 c (${r.ct.length} B = u(${set.nBytes}) ‖ v(${set.n1n2Bytes}) ‖ salt(16)):`,
+      bytesToHex(r.ct),
+      `共享密钥 SS (32 B):`,
+      bytesToHex(r.ss),
+      "",
+      "SS 即共享密钥（32B hex）。解密端用 dk + 密文 c 恢复。密文已生成下载按钮（hex 文本）。",
+    ].join("\n"),
+    files: [
+      { name: `hqc${r.set.id}_ct.hex`, mime: "text/plain", bytes: new TextEncoder().encode(bytesToHex(r.ct) + "\n") },
+      { name: `hqc${r.set.id}_ss.hex`, mime: "text/plain", bytes: new TextEncoder().encode(bytesToHex(r.ss) + "\n") },
+    ],
+  };
+};
+const hqcDecRun = (t, p = {}) => {
+  const r = hqcDecapsBytes(p.set, p.dk, t);
+  const lines = [
+    `参数集: ${r.set.id}`,
+    `共享密钥 SS (32 B):`,
+    bytesToHex(r.ss),
+  ];
+  if (r.implicit) {
+    lines.push("注: 隐式拒绝路径（重加密密文不符或译码失败，SS = K̄ = J(H(ek)‖σ‖c) 伪随机值）");
+  } else {
+    let end = r.m.length;
+    while (end > 0 && r.m[end - 1] === 0) end--; // 去除右补零
+    const text = new TextDecoder().decode(r.m.slice(0, end));
+    lines.push(
+      `明文 m (${r.m.length} B): ${r.mHex}`,
+      `明文 (utf-8，去除右补零): ${text}`
+    );
+  }
+  return lines.join("\n");
+};
+
+// ============ 合并后的双向 op（旧 hqcEncrypt/hqcDecrypt 变别名；核心函数未改） ============
 register({
-  id: "hqcEncrypt", family: "hqc", familyLabel: "encrypt",
-  cat: "asym",
+  id: "hqc", cat: "asym",
+  name: "HQC 加解密",
+  desc: "HQC-128/192/256（NIST 第四轮后量子 KEM，基于码的 KEM）双向：encode 用公钥 ek 封装明文→密文 c + 共享密钥 SS(32B)；decode 用私钥 dk + 密文解封装→SS 与明文（篡改走隐式拒绝）。密钥生成见「HQC 密钥生成」",
+  params: [
+    { key: "set", dir: "both", label: "参数集（两向共用）", type: "select", default: "128", options: SET_OPTIONS },
+    { key: "ek", dir: "encode", label: "公钥 ek (hex，仅加密)", type: "text", default: "", placeholder: "密钥生成输出的 ek hex" },
+    { key: "salt", dir: "encode", label: "salt (hex 16B，留空随机，仅加密)", type: "text", default: "", placeholder: "教学复现可固定" },
+    { sensitive: true, key: "dk", dir: "decode", label: "私钥 dk (hex，仅解密)", type: "textarea", default: "", placeholder: "密钥生成输出的 dk hex" },
+  ],
+  encode: hqcEncRun,
+  decode: hqcDecRun,
+});
+
+// 旧 id 兼容（不进 OPS；默认方向按真实语义 Encrypt→encode、Decrypt→decode）
+registerAlias({
+  id: "hqcEncrypt", aliasOf: "hqc", dir: "encode",
   name: "HQC 加密",
   desc: "HQC KEM 封装：明文（≤k 字节，右补零）封装为密文 c=u‖v‖salt 与共享密钥 SS(32B)；m/salt 可固定复现（SFO 变换口径）",
   params: [
@@ -756,67 +819,19 @@ register({
     { key: "ek", label: "公钥 ek (hex)", type: "text", default: "", placeholder: "密钥生成输出的 ek hex" },
     { key: "salt", label: "salt (hex 16B，留空随机)", type: "text", default: "", placeholder: "教学复现可固定" },
   ],
-  run: (t, p = {}) => {
-    const set = getSet(p.set);
-    if (!t || !String(t).length) throw new Error(`请输入明文（≤ ${set.k} 字节，超长先自行对称压缩/分片）`);
-    const ptBytes = new TextEncoder().encode(String(t));
-    if (ptBytes.length > set.k) {
-      throw new Error(`明文过长：${set.id} 的 k=${set.k} 字节，当前 ${ptBytes.length} 字节。HQC 是 KEM——任意长数据请用 SS 作对称密钥（如 AES-CTR）先行封装`);
-    }
-    const m = new Uint8Array(set.k);
-    m.set(ptBytes); // 右补零到 k 字节（规范 m 恰为 k 字节）
-    const r = hqcEncapsBytes(p.set, p.ek, bytesToHex(m), p.salt);
-    return {
-      text: [
-        `参数集: ${r.set.id}`,
-        `明文 m (${set.k} B，右补零): ${bytesToHex(m)}`,
-        `密文 c (${r.ct.length} B = u(${set.nBytes}) ‖ v(${set.n1n2Bytes}) ‖ salt(16)):`,
-        bytesToHex(r.ct),
-        `共享密钥 SS (32 B):`,
-        bytesToHex(r.ss),
-        "",
-        "SS 即共享密钥（32B hex）。解密端用 dk + 密文 c 恢复。密文已生成下载按钮（hex 文本）。",
-      ].join("\n"),
-      files: [
-        { name: `hqc${r.set.id}_ct.hex`, mime: "text/plain", bytes: new TextEncoder().encode(bytesToHex(r.ct) + "\n") },
-        { name: `hqc${r.set.id}_ss.hex`, mime: "text/plain", bytes: new TextEncoder().encode(bytesToHex(r.ss) + "\n") },
-      ],
-    };
-  },
+  encode: hqcEncRun, run: hqcEncRun,
 });
-
-register({
-  id: "hqcDecrypt", family: "hqc", familyLabel: "decrypt",
-  cat: "asym",
+registerAlias({
+  id: "hqcDecrypt", aliasOf: "hqc", dir: "decode",
   name: "HQC 解密",
   desc: "HQC KEM 解封装：输入私钥 dk + 密文 c，输出共享密钥 SS(32B) 与明文；密文篡改走隐式拒绝返回伪随机 K̄（含纠错译码）",
   params: [
     { key: "set", label: "参数集", type: "select", default: "128", options: SET_OPTIONS },
     { sensitive: true, key: "dk", label: "私钥 dk (hex)", type: "textarea", default: "", placeholder: "密钥生成输出的 dk hex" },
   ],
-  run: (t, p = {}) => {
-    const r = hqcDecapsBytes(p.set, p.dk, t);
-    const lines = [
-      `参数集: ${r.set.id}`,
-      `共享密钥 SS (32 B):`,
-      bytesToHex(r.ss),
-    ];
-    if (r.implicit) {
-      lines.push("注: 隐式拒绝路径（重加密密文不符或译码失败，SS = K̄ = J(H(ek)‖σ‖c) 伪随机值）");
-    } else {
-      let end = r.m.length;
-      while (end > 0 && r.m[end - 1] === 0) end--; // 去除右补零
-      const text = new TextDecoder().decode(r.m.slice(0, end));
-      lines.push(
-        `明文 m (${r.m.length} B): ${r.mHex}`,
-        `明文 (utf-8，去除右补零): ${text}`
-      );
-    }
-    return lines.join("\n");
-  },
+  decode: hqcDecRun, run: hqcDecRun,
 });
 
-// ============================================================
 // 内部函数导出（冒烟测试 / KAT 对拍 / 教学复现用；不改 op 行为）
 // ============================================================
 export const __hqcInternal = {

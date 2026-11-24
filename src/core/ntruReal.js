@@ -54,7 +54,7 @@
  *     标准式仅 F）。解密只需 f = 1+pF，故不存 g/fq（fq 可由 f 重算）。
  */
 
-import { register } from "./registry.js";
+import { register, registerAlias } from "./registry.js";
 import { decodeUtf8Lossless } from "./bytesIo.js";
 import { randomBytes as randBytes } from "./randSource.js"; // 统一随机源（默认档 system 逐字节零回归）
 
@@ -541,9 +541,80 @@ register({
   },
 });
 
+const ntruEncRun = (t, p = {}) => {
+  const set = getSet(p.set);
+  if (!p.ek || !String(p.ek).trim()) throw new Error("请先在「NTRU 密钥生成（真参数）」生成并粘贴公钥 h (hex)");
+  const kb = hexToBytes(p.ek);
+  if (kb[0] !== SETS.indexOf(set) + 1) throw new Error("公钥 tag 与所选参数集不符（确认生成时选的同一档）");
+  const pubBytes = 1 + Math.ceil((set.N * QBITS) / 8);
+  if (kb.length !== pubBytes) throw new Error(`公钥长度不符：期望 ${pubBytes} B（${set.name}），实际 ${kb.length} B`);
+  const h = unpackCoefs(kb.subarray(1), set.N, QBITS);
+  const msg = new TextEncoder().encode(String(t ?? ""));
+  if (!msg.length) throw new Error("请输入明文");
+  const r = ntruEncrypt(set, h, msg, p.seed);
+  return {
+    text: [
+      `参数集: ${set.name}（N=${set.N}, q=${set.q}）`,
+      `明文 (${msg.length} B): ${bytesToHex(msg)}`,
+      `m 重量: +1×${r.mWeight.one} / −1×${r.mWeight.minusOne}`,
+      `密文 e (${r.eBytes.length} B, hex, tag+${set.N}×11bit 系数流):`,
+      bytesToHex(r.eBytes),
+      "",
+      "密文粘到「NTRU 解密（真参数）」还原。同一明文每次加密都不同（随机 b 与 r）。下方按钮下载。",
+    ].join("\n"),
+    files: [
+      { name: `ntru_${set.name}_ct.hex`, mime: "text/plain", bytes: new TextEncoder().encode(bytesToHex(r.eBytes) + "\n") },
+    ],
+  };
+};
+const ntruDecRun = (t, p = {}) => {
+  const set = getSet(p.set);
+  if (!p.dk || !String(p.dk).trim()) throw new Error("请先在「NTRU 密钥生成（真参数）」生成并粘贴私钥 (hex)");
+  const kb = hexToBytes(p.dk);
+  if (kb[0] !== SETS.indexOf(set) + 1) throw new Error("私钥 tag 与所选参数集不符（确认生成时选的同一档）");
+  const partBytes = Math.ceil((set.N * 2) / 8);
+  const nParts = set.prod ? 3 : 1;
+  if (kb.length !== 1 + nParts * partBytes) {
+    throw new Error(`私钥长度不符：期望 ${1 + nParts * partBytes} B（${set.name}），实际 ${kb.length} B`);
+  }
+  const parts = [];
+  for (let i = 0; i < nParts; i++) {
+    parts.push(unpackCoefs(kb.subarray(1 + i * partBytes, 1 + (i + 1) * partBytes), set.N, 2));
+  }
+  if (!t || !String(t).trim()) throw new Error("请输入密文 hex（NTRU 加密输出）");
+  const eb = hexToBytes(t);
+  if (eb[0] !== SETS.indexOf(set) + 1) throw new Error("密文 tag 与所选参数集不符");
+  const ctBytes = 1 + Math.ceil((set.N * QBITS) / 8);
+  if (eb.length !== ctBytes) throw new Error(`密文长度不符：期望 ${ctBytes} B（${set.name}），实际 ${eb.length} B`);
+  const e = unpackCoefs(eb.subarray(1), set.N, QBITS);
+  const msg = ntruDecrypt(set, parts, e);
+  let text;
+  try {
+    text = _decodeUtf8Fatal(msg);
+  } catch {
+    text = `（非 UTF-8，输出 hex）${bytesToHex(msg)}`;
+  }
+  return `参数集: ${set.name}\n明文 (${msg.length} B):\n${text}`;
+};
+
+// ============ 合并后的双向 op（旧 ntruEncrypt/ntruDecrypt 变别名；核心函数未改） ============
 register({
-  id: "ntruEncrypt", family: "ntru", familyLabel: "encrypt",
-  cat: "asym",
+  id: "ntru", cat: "asym",
+  name: "NTRU 加解密（真参数）",
+  desc: "EESS v3.1 真参数 NTRU 双向：encode e=r∗h+m mod q（SVES 映射 + 随机 b/盲化采样）→密文；decode a=f∗e mod q→中心化→mod3→SVES 逆映射还原明文（含长度/零填充校验）。被动安全核心 PKE，密钥生成见「NTRU 密钥生成（真参数）」",
+  params: [
+    { key: "set", dir: "both", label: "参数集（两向共用）", type: "select", default: "ees401ep2", options: SET_OPTIONS },
+    { key: "ek", dir: "encode", label: "公钥 h (hex，仅加密)", type: "text", default: "", placeholder: "密钥生成输出的公钥 hex" },
+    { key: "seed", dir: "encode", label: "seed (hex，留空随机，仅加密)", type: "text", default: "", placeholder: "教学复现可固定" },
+    { sensitive: true, key: "dk", dir: "decode", label: "私钥 (hex，仅解密)", type: "textarea", default: "", placeholder: "密钥生成输出的私钥 hex" },
+  ],
+  encode: ntruEncRun,
+  decode: ntruDecRun,
+});
+
+// 旧 id 兼容（不进 OPS；默认方向按真实语义 Encrypt→encode、Decrypt→decode）
+registerAlias({
+  id: "ntruEncrypt", aliasOf: "ntru", dir: "encode",
   name: "NTRU 加密（真参数）",
   desc: "EESS v3.1 真参数 NTRU 加密：e = r∗h + m mod q（SVES 系数映射 + 随机 b 字段），被动安全核心 PKE（非完整 SVES CCA-2）",
   params: [
@@ -551,72 +622,17 @@ register({
     { key: "ek", label: "公钥 h (hex)", type: "text", default: "", placeholder: "密钥生成输出的公钥 hex" },
     { key: "seed", label: "seed (hex，留空随机)", type: "text", default: "", placeholder: "教学复现可固定" },
   ],
-  run: (t, p = {}) => {
-    const set = getSet(p.set);
-    if (!p.ek || !String(p.ek).trim()) throw new Error("请先在「NTRU 密钥生成（真参数）」生成并粘贴公钥 h (hex)");
-    const kb = hexToBytes(p.ek);
-    if (kb[0] !== SETS.indexOf(set) + 1) throw new Error("公钥 tag 与所选参数集不符（确认生成时选的同一档）");
-    const pubBytes = 1 + Math.ceil((set.N * QBITS) / 8);
-    if (kb.length !== pubBytes) throw new Error(`公钥长度不符：期望 ${pubBytes} B（${set.name}），实际 ${kb.length} B`);
-    const h = unpackCoefs(kb.subarray(1), set.N, QBITS);
-    const msg = new TextEncoder().encode(String(t ?? ""));
-    if (!msg.length) throw new Error("请输入明文");
-    const r = ntruEncrypt(set, h, msg, p.seed);
-    return {
-      text: [
-        `参数集: ${set.name}（N=${set.N}, q=${set.q}）`,
-        `明文 (${msg.length} B): ${bytesToHex(msg)}`,
-        `m 重量: +1×${r.mWeight.one} / −1×${r.mWeight.minusOne}`,
-        `密文 e (${r.eBytes.length} B, hex, tag+${set.N}×11bit 系数流):`,
-        bytesToHex(r.eBytes),
-        "",
-        "密文粘到「NTRU 解密（真参数）」还原。同一明文每次加密都不同（随机 b 与 r）。下方按钮下载。",
-      ].join("\n"),
-      files: [
-        { name: `ntru_${set.name}_ct.hex`, mime: "text/plain", bytes: new TextEncoder().encode(bytesToHex(r.eBytes) + "\n") },
-      ],
-    };
-  },
+  encode: ntruEncRun, run: ntruEncRun,
 });
-
-register({
-  id: "ntruDecrypt", family: "ntru", familyLabel: "decrypt",
-  cat: "asym",
+registerAlias({
+  id: "ntruDecrypt", aliasOf: "ntru", dir: "decode",
   name: "NTRU 解密（真参数）",
   desc: "EESS v3.1 真参数 NTRU 解密：a = f∗e mod q → 中心化 (−q/2,q/2] → mod 3 → SVES 逆映射还原明文（含零填充/长度校验）",
   params: [
     { key: "set", label: "参数集", type: "select", default: "ees401ep2", options: SET_OPTIONS },
     { sensitive: true, key: "dk", label: "私钥 (hex)", type: "textarea", default: "", placeholder: "密钥生成输出的私钥 hex" },
   ],
-  run: (t, p = {}) => {
-    const set = getSet(p.set);
-    if (!p.dk || !String(p.dk).trim()) throw new Error("请先在「NTRU 密钥生成（真参数）」生成并粘贴私钥 (hex)");
-    const kb = hexToBytes(p.dk);
-    if (kb[0] !== SETS.indexOf(set) + 1) throw new Error("私钥 tag 与所选参数集不符（确认生成时选的同一档）");
-    const partBytes = Math.ceil((set.N * 2) / 8);
-    const nParts = set.prod ? 3 : 1;
-    if (kb.length !== 1 + nParts * partBytes) {
-      throw new Error(`私钥长度不符：期望 ${1 + nParts * partBytes} B（${set.name}），实际 ${kb.length} B`);
-    }
-    const parts = [];
-    for (let i = 0; i < nParts; i++) {
-      parts.push(unpackCoefs(kb.subarray(1 + i * partBytes, 1 + (i + 1) * partBytes), set.N, 2));
-    }
-    if (!t || !String(t).trim()) throw new Error("请输入密文 hex（NTRU 加密输出）");
-    const eb = hexToBytes(t);
-    if (eb[0] !== SETS.indexOf(set) + 1) throw new Error("密文 tag 与所选参数集不符");
-    const ctBytes = 1 + Math.ceil((set.N * QBITS) / 8);
-    if (eb.length !== ctBytes) throw new Error(`密文长度不符：期望 ${ctBytes} B（${set.name}），实际 ${eb.length} B`);
-    const e = unpackCoefs(eb.subarray(1), set.N, QBITS);
-    const msg = ntruDecrypt(set, parts, e);
-    let text;
-    try {
-      text = _decodeUtf8Fatal(msg);
-    } catch {
-      text = `（非 UTF-8，输出 hex）${bytesToHex(msg)}`;
-    }
-    return `参数集: ${set.name}\n明文 (${msg.length} B):\n${text}`;
-  },
+  decode: ntruDecRun, run: ntruDecRun,
 });
 
 // 供冒烟/单测复用（不进 op 面）

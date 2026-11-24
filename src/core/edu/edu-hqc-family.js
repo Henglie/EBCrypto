@@ -63,4 +63,22 @@ export default {
     ],
     aka: ["HQC 解密", "HQC decrypt", "HQC 解封装", "HQC decapsulation", "HQC KEM 解密", "后量子解封装", "码基解密", "HQC 私钥解密", "HQC-128 解密", "准循环译码", "RMRS 译码", "Berlekamp-Massey 译码", "Hadamard 译码", "隐式拒绝解密"],
   },
+  hqc: {
+    what: "HQC 加解密一体（NIST 第四轮后量子 KEM，基于码的 KEM）：编码方向用公钥 ek 把明文封装成密文 c=u‖v‖salt 并派生 32 字节共享密钥 SS；解码方向用私钥 dk 从密文解封装出同一个 SS 与明文，篡改走隐式拒绝。",
+    principle:
+      "封装：把明文 m（≤k 字节，右补零）与随机 salt 经 SFO 变换映射到码字空间，用公钥矩阵乘出 $u$，加噪声得 $v$；密文 $c=u\\|v\\|\\mathrm{salt}$，共享密钥 $SS=\\mathrm{KDF}(m\\|u\\|v)$。\n\n" +
+      "解封装：用私钥 dk（含 seed_dk）重建私钥矩阵，对 $u$ 做纠错译码恢复 m；重算 SS 并校验——不通过时不报错，而是返回一个伪随机 K̄（隐式拒绝），避免给攻击者区分信息。HQC-128/192/256 三档对应不同的 n/k/纠错能力。",
+    usage: "方向滑块选「编码」= 封装：填公钥 ek（hex）、参数集（128/192/256），salt 留空随机（固定可复现）。选「解码」= 解封装：填私钥 dk（hex，2321/4602/7333 字节按档位）与密文。密钥在「HQC 密钥生成」档生成。旧 id `hqcEncrypt` / `hqcDecrypt` 仍可用，自动落到对应方向。",
+    examples: [
+      { in: "flag{hqc_is_fun}", param: "编码：set=128 + 公钥 ek", out: "密文 c（u‖v‖salt）+ SS（32B hex）", desc: "同一明文每次密文不同（随机 salt）" },
+      { in: "密文 c（hex）", param: "解码：set=128 + 私钥 dk", out: "SS（32B）+ 明文", desc: "改密文任意比特会走隐式拒绝" },
+    ],
+    tips: [
+      "「解密成功」的判据不是有没有报错——隐式拒绝会安静地给你一个假 SS；看到「隐式拒绝路径」字样就该怀疑密文被改或 dk 不配对。",
+      "纠错译码是 HQC 的心脏：注入不超过纠错半径的随机比特，解封装照样还原明文——想验真伪实现，给 v 加几十个随机比特再解。",
+      "dk 是 2321/4602/7333 字节（按档位），粘少了直接报长度错误；HQC-128 的 2241~2273 字节就是 32 字节 seed_dk。",
+      "CTF 里 HQC 常与对称加密串起来：题目给「HQC 密文 + 私钥」，先解封装拿 SS，再用 SS 当 AES 密钥解正文。",
+    ],
+    aka: ["HQC 加解密", "HQC 加密解密", "HQC 封装解封装", "HQC encaps/decaps", "HQC KEM", "后量子 KEM", "码基密码", "HQC-128", "HQC-192", "HQC-256", "NIST 第四轮 KEM", "隐式拒绝", "准循环码 KEM", "HQC 双向"],
+  },
 };

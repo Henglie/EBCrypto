@@ -523,7 +523,7 @@ const opJotto = runOp(
         if (hits.length > 5000) throw new Error("候选超过 5000，请再加反馈");
       }
     }
-    return hits.length ? `一致候选 ${hits.length} 个：\n${hits.slice(0, 500).join("\n")}${hits.length > 500 ? "\n…（截断到 500）" : ""}` : "无候选（反馈矛盾或词表缺失）";
+    return hits.length ? `一致候选 ${hits.length} 个：\n${hits.join("\n")}` : "无候选（反馈矛盾或词表缺失）";
   },
   [P("lang", "词典（en/fr）", "en")]
 );
@@ -576,7 +576,7 @@ const opMotus = runOp(
         if (hits.length > 5000) throw new Error("候选超过 5000，请再加反馈");
       }
     }
-    return hits.length ? `一致候选 ${hits.length} 个：\n${hits.slice(0, 500).join("\n")}${hits.length > 500 ? "\n…（截断到 500）" : ""}` : "无候选（反馈矛盾或词表缺失）";
+    return hits.length ? `一致候选 ${hits.length} 个：\n${hits.join("\n")}` : "无候选（反馈矛盾或词表缺失）";
   },
   [P("lang", "词典（en/fr）", "en")]
 );
@@ -602,7 +602,7 @@ const opPhrasefilter = runOp(
     re += "$";
     const rx = new RegExp(re, "i");
     const hits = words.filter((w) => rx.test(w));
-    return hits.length ? `模式「${pat}」候选 ${hits.length} 条：\n${hits.slice(0, 500).join("\n")}` : `模式「${pat}」无候选`;
+    return hits.length ? `模式「${pat}」候选 ${hits.length} 条：\n${hits.join("\n")}` : `模式「${pat}」无候选`;
   }
 );
 

@@ -29,8 +29,8 @@ export const RAND_OPS = Object.freeze(new Set([
   "xmssKeyGen", "xwingKeyGen",
   // —— 现代密码·非对称：签名 / 加密 / 封装 / 交换（含随机 nonce、salt、IV）——
   "dsaSign", "ecdsaSign", "ed448Sign", "falconSign", "gostSign", "mldsaSign", "rsaSign",
-  "schnorrSign", "slhdsaSign", "sm2Sign", "sm2Encrypt", "sm2KeyExchange",
-  "hqcEncrypt", "mlkemEncaps", "ntruEncrypt", "paillierEncrypt", "xwingEncaps",
+  "schnorrSign", "slhdsaSign", "sm2Sign", "sm2Cipher", "sm2KeyExchange",
+  "hqc", "mlkemEncaps", "ntru", "paillierCipher", "xwingEncaps",
   "x25519Shared", "lsagSign", "pedersenCommit", "feldmanVss", "jweEncrypt", "jweCipher",
   "rsaOaepEnc", "hpkeSeal",
   // —— 分组 / 流密码与对称封装（随机 IV / salt）——

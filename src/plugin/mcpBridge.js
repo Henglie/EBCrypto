@@ -890,7 +890,7 @@ const MCP_RESOURCES = [
 ];
 
 // 解题引导正文（供 ebctf://guide 资源返回）。写成 AI 能直接照做的操作序列，不空谈。
-const GUIDE_TEXT = `# 用恒烈CTF编码工具箱解题的推荐流程
+const GUIDE_TEXT = `# 用码小妹（EBCrypto）解题的推荐流程
 
 面对一段看不懂的密文/编码，按下面顺序走，多数编码题一两步就能出结果。
 
@@ -1014,7 +1014,7 @@ export function exportManifest() {
     server: {
       name: "ebctf-codebox",
       version: SERVER_VERSION,
-      description: "恒烈CTF编码工具箱 · 编解码/加解密/智能识别/一键智能解码能力面",
+      description: "码小妹 · EBCrypto · 编解码/加解密/智能识别/一键智能解码能力面",
       vendor: "Henglie / EBCTFCodeBox",
       homepage: "https://github.com/Henglie/EBCrypto",
     },

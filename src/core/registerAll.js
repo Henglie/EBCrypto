@@ -216,6 +216,7 @@ import "./bftoolsImg.js"; // Brainloller/Braincopter 图像变体（stego）
 import "./xwing.js"; // X-Wing 混合 KEM（asym，PQC）
 import "./stegdetect.js"; // stegdetect JPEG 隐写检测（analysis）
 import "./jsteg.js";
+import "./stegox.js"; // StegoX 容器双向 stegox（stegoFile, 双向, AES-GCM+PBKDF2, 与官方站互通）
 import "./stegoOpWrappers.js"; // lsbDeep/rasterStego/mp3stego/imageThumb（stegoFile，acceptsBytes） // jsteg JPEG 系数隐写（stego）
 import "./dtmfWav.js"; // DTMF 拨号音 WAV 编/解（stego；此前仅经 audioAnalysis 间接注册，Node/Worker 闭包缺项）
 import "./morseWav.js"; // 摩斯音频解码 morseWav（audio, decode, WAV→包络→Otsu 自适应阈值→点划分类→明文, 无 detect）

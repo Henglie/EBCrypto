@@ -228,7 +228,7 @@ function huffmanEncode(text, p = {}) {
   if (tbl.hidden) lines.push(`…（其余 ${tbl.hidden} 项省略）`);
   lines.push("");
   lines.push(`bitLen: ${bitStr.length}`);
-  lines.push(`hex: ${bytesToHex(packed).length > 4096 ? bytesToHex(packed).slice(0, 4096) + "…(截断)" : bytesToHex(packed)}`);
+  lines.push(`hex: ${bytesToHex(packed)}`);
   if (bitStr.length <= 256) lines.push(`bits: ${bitStr}`);
   if (mode === "freq") {
     lines.push("");
@@ -276,7 +276,7 @@ function huffmanDecode(text, p = {}) {
   const lines = [];
   lines.push(`解码: ${outBytes.length} 字节（${bits.length} bit）`);
   if (isText) lines.push(dec);
-  else lines.push(`hex: ${bytesToHex(outBytes).length > 4096 ? bytesToHex(outBytes).slice(0, 4096) + "…" : bytesToHex(outBytes)}`);
+  else lines.push(`hex: ${bytesToHex(outBytes)}`);
   return lines.join("\n");
 }
 

@@ -220,8 +220,7 @@ function mimeMultipartOp(text, p = {}) {
     head += part.type || "(无类型)";
     if (part.name) head += "  name=" + part.name;
     if (part.encoding) head += "  encoding=" + part.encoding;
-    const preview = part.decoded.length > 500 ? part.decoded.slice(0, 500) + "\n…（截断）" : part.decoded;
-    return head + "\n" + preview;
+    return head + "\n" + part.decoded;
   });
   return out.join("\n\n" + "─".repeat(20) + "\n\n");
 }

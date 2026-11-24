@@ -690,8 +690,7 @@ function gifCommentRun(text, p) {
   } else {
     lines.push(`注释扩展块 ${comments.length} 个:`);
     comments.forEach((c, idx) => {
-      const preview = c.length > 200 ? c.slice(0, 200) + `...(+${c.length - 200} 字节)` : c;
-      lines.push(`  [注释 ${idx + 1}] (${c.length} 字节): "${preview}"`);
+      lines.push(`  [注释 ${idx + 1}] (${c.length} 字节): "${c}"`);
     });
   }
   return lines.join("\n");

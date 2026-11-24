@@ -209,6 +209,9 @@ const LEGACY_OP_IDS = {
   brainlollerEncode: "brainloller", brainlollerDecode: "brainloller",
   braincopterEncode: "braincopter", braincopterDecode: "braincopter",
   jweEncrypt: "jweCipher", jweDecrypt: "jweCipher",
+  ntruEncrypt: "ntru", ntruDecrypt: "ntru",
+  hqcEncrypt: "hqc", hqcDecrypt: "hqc",
+  ntruCca2Encrypt: "ntruCca2", ntruCca2Decrypt: "ntruCca2",
 };
 
 // 旧 id 别名：能被 getOp 取到并执行，但不进 OPS（列表 / 搜索 / 计数 / 一键解码都看不到）。

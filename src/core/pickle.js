@@ -359,7 +359,7 @@ function disassemble(bytes) {
 
     if (spec.name === "STOP") { stopSeen = true; break; }
     opCount++;
-    if (opCount > 500000) { lines.push("… opcode 数量超过 50 万，已截断"); break; }
+    if (opCount > 500000) throw new Error("opcode 数量超过 50 万，未生成不完整报告");
   }
 
   return { lines, dangers, maxProto, stopSeen, consumed: pos, total: bytes.length };

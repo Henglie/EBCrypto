@@ -342,8 +342,8 @@ async function archiveUnifiedReport(text, p) {
       if (r.ok) {
         lines.push("✓ 解压成功: " + r.out.length + " 字节");
         const rr = bytesToOutput(r.out);
-        const preview = rr.text.length > 500 ? rr.text.slice(0, 500) + " …(截断)" : rr.text;
-        lines.push("内容(" + rr.mode + "): " + preview.replace(/\n/g, "\n  "));
+        lines.push("内容(" + rr.mode + "): " + rr.text.replace(/\n/g, "\n  "));
+        return withProductFiles(lines, [{ name: "decompressed.bin", mime: "application/octet-stream", bytes: r.out }]);
       } else {
         lines.push("✗ 解压失败: " + r.error);
       }
@@ -372,8 +372,8 @@ async function archiveUnifiedReport(text, p) {
     if (r.ok) {
       lines.push("✓ 解压成功: " + r.out.length + " 字节");
       const rr = bytesToOutput(r.out);
-      const preview = rr.text.length > 500 ? rr.text.slice(0, 500) + " …(截断)" : rr.text;
-      lines.push("内容(" + rr.mode + "): " + preview.replace(/\n/g, "\n  "));
+      lines.push("内容(" + rr.mode + "): " + rr.text.replace(/\n/g, "\n  "));
+      return withProductFiles(lines, [{ name: "decompressed.bin", mime: "application/octet-stream", bytes: r.out }]);
     } else {
       lines.push("✗ 解压失败: " + r.error);
     }
@@ -391,8 +391,8 @@ async function archiveUnifiedReport(text, p) {
     if (out && out.length > 0) {
       lines.push("✓ 解压成功: " + out.length + " 字节");
       const rr = bytesToOutput(out);
-      const preview = rr.text.length > 500 ? rr.text.slice(0, 500) + " …(截断)" : rr.text;
-      lines.push("内容(" + rr.mode + "): " + preview.replace(/\n/g, "\n  "));
+      lines.push("内容(" + rr.mode + "): " + rr.text.replace(/\n/g, "\n  "));
+      return withProductFiles(lines, [{ name: "decompressed.bin", mime: "application/octet-stream", bytes: out }]);
     } else {
       lines.push("✗ 纯 JS 解压失败: " + (berr || "输出为空"));
      // 纯 JS 失败（如非标准流）再试 7z-wasm

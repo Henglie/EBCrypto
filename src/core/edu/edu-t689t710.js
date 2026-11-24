@@ -888,6 +888,31 @@ export default {
       "NTRU CCA2 检查"
     ]
   },
+  "ntruCca2": {
+    "what": "NTRU CCA-2 变体加解密一体（hash-based SVES，教学演示）：编码方向 b 与盲化多项式 r 都由明文 MGF1-SHA256 确定性派生；解码方向重算 MGF 与恢复的 b 比对，不一致即拒绝。底层 PKE/SVES 与「NTRU 真实参数」同源。",
+    "principle": "**与普通 NTRU 的差异**：普通 SVES 的 b 是随机字节，解密端无法验证，密文被翻改后解出的是另一个「合法」明文（CCA-1 式）。本变体把 b 换成 $\\mathrm{MGF1\\text{-}SHA256}(\\text{参数集} \\| \\text{明文})$，r 由 $(b \\| \\text{明文})$ 哈希确定性采样：① 加密全确定（同公钥+明文必得同密文）；② 解密端恢复明文后重算 MGF1 与 b 比对——攻击者改密文 ⇒ 明文变 ⇒ b 校验失败 ⇒ 拒绝。\n\n底层不变（EESS1 v3.1 / P1363.1 §9.2.2/9.2.3）：M=b‖octL‖msg‖0 → SVES 3bit→2 系数映射 → e=r∗h+m mod q；解密 f∗e 中心化 → mod 3 → SVES 逆映射。",
+    "usage": "方向滑块选「编码」= 加密：输入 UTF-8 明文 + 公钥 hex（来自「NTRU 密钥生成」），参数集由公钥标签字节自动识别。选「解码」= 解密：粘密文 hex（含 1 字节标签）与对应私钥。旧 id `ntruCca2Encrypt` / `ntruCca2Decrypt` 仍可用。诚实边界：无官方 KAT 的教学实现，生产请用 ML-KEM；确定性加密会泄露「两次明文是否相同」。",
+    "examples": [
+      {
+        "in": "ees401ep1 公钥 + \"NTRU CCA-2 roundtrip 测试!\"",
+        "out": "密文 553 字节（含 1 字节标签）= 01c8c9…；同明文再加密逐字节相同",
+        "desc": "确定性 + 往返还原"
+      },
+      {
+        "in": "同一密文翻转中部 1 bit 后解密",
+        "out": "报错「CCA-2 校验失败：恢复的 b 与 MGF(明文) 不一致」",
+        "desc": "篡改被哈希绑定拒绝"
+      }
+    ],
+    "tips": [
+      "确定性是双刃剑：可复现、可校验，但也泄露「两次发送的明文是否相同」——演示口径已明示，不要用于真实通信。",
+      "解密失败先查三处：密文标签与私钥参数集是否一致、密文是否被截断、明文是否超过该参数集上限。",
+      "与普通 NTRU 对比实验：同一密文改 1 bit，普通 NTRU 会安静解出损坏明文，本变体直接拒绝——这就是 CCA-2 加固的价值。",
+    ],
+    "aka": [
+      "NTRU CCA-2", "NTRU CCA2", "NTRU 加解密", "NTRU 认证加密", "hash-based SVES", "NTRU 重加密校验", "确定性 NTRU", "NTRU CCA-2 双向", "ees401ep1", "NTRU 抗选择密文", "NTRU 教学演示", "NTRU 哈希绑定"
+    ]
+  },
   "xoodyakHash": {
     "what": "Xoodyak-Hash——NIST 轻量级密码竞赛（LWC）决赛方案 Xoodyak 的哈希模式：底层是 384 位状态的 Xoodoo 置换（12 轮，θ/ρwest/ι/χ/ρeast 五步，与 Keccak-p 同设计思想的轻量化小姊妹），外层是 Cyclist 单色域海绵，吸收块 16 字节，输出固定 32 字节摘要。面向资源受限设备（IoT/嵌入式），也出现在轻量密码方向的 CTF 题里。",
     "principle": "**两层结构**：\n\n① **Xoodoo[12] 置换**：状态 3 个平面 × 4 列 × 32 位 lane = 384 位。每轮五步——\nθ（列奇偶混合：$P = A_0 + A_1 + A_2$，$E = P \\ll(1,5) + P \\ll(1,14)$）→ ρwest（平面移位）→ ι（轮常数，规范 Table 2 共 12 个，$c_{-11}$=0x058 … $c_0$=0x012）→ χ（非线性层 $A_y \\mathrel{+}= \\lnot A_{y+1}\\cdot A_{y+2}$）→ ρeast。lane 与字节按小端映射（$i = z + 32(x + 4y)$）。\n② **Cyclist 海绵模式**：hash 模式是单色域——Absorb 每块后打帧位 0x01、首块色字节（&0x01），Squeeze 时色被忽略；吸收块 Rhash=16 字节，挤出块同 16 字节，先 Up 取 16 字节再 Down(空) 续 Up 取满 32 字节。\n\n**与 SHA-3 的关系**：同为 Keccak 团队（Daemen/Van Assche 等）的海绵结构设计，但置换不同（Xoodoo 384 位 vs Keccak-f 1600 位）、帧规则不同（Cyclist 帧位+色 vs Keccak pad），结果互不通用；也不是 SHA-3 的轻量档。\n\n**安全定位**：128 位安全强度（NIST LWC 决赛口径）；规范同文给出 hash 模式的伪造/碰撞界。",

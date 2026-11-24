@@ -1,4 +1,4 @@
-self.__EBCTF_ASSET_REV = "ef3d33c4784be6fa";
+self.__EBCTF_ASSET_REV = "f1116ce031713bc0";
 self.__EBCTF_ASSETS = [
   "./",
   "./index.html",
@@ -783,6 +783,7 @@ self.__EBCTF_ASSETS = [
   "./src/core/stegoResearch.js",
   "./src/core/stegoText.js",
   "./src/core/stegosaurus.js",
+  "./src/core/stegox.js",
   "./src/core/stegpy.js",
   "./src/core/stereogram.js",
   "./src/core/straddleCheckerboard.js",

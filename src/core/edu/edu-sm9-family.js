@@ -89,4 +89,23 @@ export default {
     ],
     aka: ["SM9 解密", "SM9 decrypt", "国密 SM9 解密", "SM9 标识解密", "SM9 密文解密", "GB/T 38635.4 解密", "SM9 IBE 解密", "identity-based decryption", "标识解密", "商密 SM9 解密", "国密 9 解密", "SM9 C3 校验", "SM9 私钥解密"],
   },
+  sm9Cipher: {
+    what: "SM9 标识密码加解密一体：编码方向用「收件人标识 uid + 系统加密主公钥」把明文加密成 C1‖C3‖C2；解码方向用收件人的加密私钥 dB 还原明文并校验 C3。",
+    principle:
+      "加密取随机 r∈[1,n-1]；用户加密公钥点 $Q_B=[H_1(\\mathrm{uid}\\|\\mathrm{hid})]P_{\\mathrm{pub\\_e}}+g_1'$ 由标识当场算出。C1=[r]QB（64 字节裸 x‖y，没有 04 前缀）；$w=e(P_{\\mathrm{pub\\_e}},g_2)^{r}$；KDF(C1‖w‖uid) 派生密钥流，前段异或明文得 C2，后段 32 字节作 K2，C3=SM3(C2‖K2)。\n\n" +
+      "解密算 $w'=e(C_1,d_B)$——双线性对保证 $w'=w$，重派同一密钥流还原明文并重算 C3 比对，对不上（篡改/错 uid/错私钥）直接报错。私钥 dB 与 uid 一一绑定，uid 不对 KDF 输出全错。",
+    usage: "方向滑块选「编码」= 加密：输入明文（utf8/hex…），填加密主公钥 Ppub_e（G1，65B hex）、收件人 uid（默认 Bob）、hid（默认 03），固定 r 可复现官方向量。选「解码」= 解密：输入密文（默认 hex），填用户加密私钥 dB（G2，129B）与加密时所用 uid。旧 id `sm9Encrypt` / `sm9Decrypt` 仍可用，自动落到对应方向。",
+    examples: [
+      { in: "Chinese IBE standard", param: "编码：Ppub_e=官方主公钥，uid=Bob，hid=03，fixedR=官方 r", out: "C1(64B)‖C3(32B)‖C2 的 hex 密文", desc: "GB/T 38635.4 附录 A 官方加密向量" },
+      { in: "C1‖C3‖C2 密文 hex", param: "解码：dB=Bob 的 G2 私钥（129B），uid=Bob", out: "Chinese IBE standard", desc: "C3 校验通过才输出明文" },
+    ],
+    tips: [
+      "SM9 密文结构 C1‖C3‖C2：C1 是 64 字节裸 x‖y（没有 SM2 那样的 04 前缀！），C3 固定 32 字节 SM3 校验，C2 与明文等长。",
+      "「加密不用证书」是最大卖点：任何人在任何地方，拿 uid + 系统参数即可加密给对方。",
+      "解密私钥是 G2 点（129B），比签名私钥的 G1 点（65B）长一倍——结构上先区分。",
+      "「C3 校验失败」三大原因：uid 与加密时不一致 / 私钥不是这个 uid 的 / 密文被截断（C1 64B + C3 32B + C2 明文长）。",
+      "CTF 套路：给 KGC 主私钥 ke + 目标 uid，先在密钥生成档派生 dB 再来解密——SM9 私钥是算出来的不是猜的。",
+    ],
+    aka: ["SM9 加解密", "SM9 加密解密", "SM9 标识加密", "SM9 标识解密", "SM9 encrypt/decrypt", "SM9 IBE", "identity-based encryption", "identity-based decryption", "GB/T 38635.4 加解密", "国密 SM9 加解密", "商密 SM9 加解密", "SM9 C1C3C2", "邮箱即公钥加密", "SM9 双线性对加解密", "SM9 C3 校验"],
+  },
 };

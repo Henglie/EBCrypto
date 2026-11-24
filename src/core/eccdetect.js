@@ -256,8 +256,8 @@ function nodeTypeName(node) {
   return TAG_CLASS_NAMES[node.class] + " [" + node.tagNum + "]" + (node.constructed ? " (constructed)" : "");
 }
 
-/** 递归格式化 ASN.1 树为文本（带缩进）。 */
-function formatAsn1Tree(node, indent = 0, maxDepth = 8, truncateOctets = 32) {
+/** 递归格式化 ASN.1 树为文本；最终报告始终保留完整字段。 */
+function formatAsn1Tree(node, indent = 0) {
   const pad = "  ".repeat(indent);
   const lines = [];
   const type = nodeTypeName(node);
@@ -272,11 +272,11 @@ function formatAsn1Tree(node, indent = 0, maxDepth = 8, truncateOctets = 32) {
         break;
       case 0x03: { // BIT STRING
         const bs = decodeBitString(node.value);
-        val = `unusedBits=${bs.unusedBits}, ${bs.bytes.length} 字节` + (bs.bytes.length <= truncateOctets ? "  " + toHex(bs.bytes) : "");
+        val = `unusedBits=${bs.unusedBits}, ${bs.bytes.length} 字节  ${toHex(bs.bytes)}`.trimEnd();
         break;
       }
       case 0x04: // OCTET STRING
-        val = `${node.value.length} 字节  ${node.value.length <= truncateOctets ? toHex(node.value) : ""}`.trimEnd();
+        val = `${node.value.length} 字节  ${toHex(node.value)}`.trimEnd();
         break;
       case 0x05: // NULL
         val = "";
@@ -301,15 +301,13 @@ function formatAsn1Tree(node, indent = 0, maxDepth = 8, truncateOctets = 32) {
         val = decodeInteger(node.value).toString();
         break;
       default:
-        val = node.value.length <= truncateOctets ? toHex(node.value) : `(${node.value.length} 字节)`;
+        val = toHex(node.value);
     }
   }
   const lenTag = node.indefinite ? "indef" : node.length;
   lines.push(`${pad}${type} (${lenTag} 字节)${val ? " : " + val : ""}`);
-  if (node.children && indent < maxDepth) {
-    for (const c of node.children) lines.push(...formatAsn1Tree(c, indent + 1, maxDepth, truncateOctets));
-  } else if (node.children && indent >= maxDepth) {
-    lines.push(`${pad}  …(深度上限，省略子节点)`);
+  for (const child of node.children || []) {
+    for (const line of formatAsn1Tree(child, indent + 1)) lines.push(line);
   }
   return lines;
 }
@@ -951,6 +949,13 @@ function identifyEthAddress(text) {
 // ============================================================
 
 // ---- pemParse ----
+function appendReportFields(lines, heading, fields) {
+  const entries = Object.entries(fields || {});
+  if (!entries.length) return;
+  lines.push(heading);
+  for (const [key, value] of entries) lines.push(`  ${key}: ${String(value)}`);
+}
+
 function pemParseReport(text, p) {
  // 拖入文件走 rawBytes 通道（acceptsBytes 约定，双模文本/字节 op）：
  // PEM 是 ASCII 文本，把真字节按 latin1 还原成文本再走原 PEM 解析；
@@ -966,17 +971,11 @@ function pemParseReport(text, p) {
       const id = identifyStructure(rb, null);
       lines.push("=== DER 结构解析（拖入二进制文件）===");
       lines.push(`输入: ${rb.length} 字节`);
-      lines.push(`DER hex: ${rb.length <= 64 ? toHex(rb) : toHex(rb.slice(0, 64)) + "…(" + rb.length + " 字节)"}`);
+      lines.push(`DER hex: ${toHex(rb)}`);
       lines.push(`类型: ${id.desc}`);
-      if (id.detail && Object.keys(id.detail).length) {
-        lines.push("结构字段:");
-        for (const [k, v] of Object.entries(id.detail)) {
-          const vs = String(v);
-          lines.push(`  ${k}: ${vs.length > 80 ? vs.slice(0, 80) + "…(" + vs.length + " 字符)" : vs}`);
-        }
-      }
+      appendReportFields(lines, "结构字段:", id.detail);
       lines.push("ASN.1 树:");
-      try { lines.push(...formatAsn1Tree(parseAsn1(rb), 1, 4)); }
+      try { for (const line of formatAsn1Tree(parseAsn1(rb), 1)) lines.push(line); }
       catch (e) { lines.push("  (ASN.1 解析失败: " + e.message + ")"); }
       return lines.join("\n");
     }
@@ -995,19 +994,12 @@ function pemParseReport(text, p) {
       lines.push("");
       lines.push(`[块 ${i + 1}] ${b.label}  ·  ${meta.desc}`);
       lines.push(`DER: ${b.der.length} 字节`);
-      lines.push(`DER hex: ${b.der.length <= 64 ? toHex(b.der) : toHex(b.der.slice(0, 64)) + "…(" + b.der.length + " 字节)"}`);
-      if (id.detail && Object.keys(id.detail).length) {
-        lines.push("结构字段:");
-        for (const [k, v] of Object.entries(id.detail)) {
-          const vs = String(v);
-          lines.push(`  ${k}: ${vs.length > 80 ? vs.slice(0, 80) + "…(" + vs.length + " 字符)" : vs}`);
-        }
-      }
- // 内嵌 ASN.1 树（前 2 层）
-      lines.push("ASN.1 顶层:");
+      lines.push(`DER hex: ${toHex(b.der)}`);
+      appendReportFields(lines, "结构字段:", id.detail);
+      lines.push("ASN.1 树:");
       try {
         const root = parseAsn1(b.der);
-        lines.push(...formatAsn1Tree(root, 1, 2));
+        for (const line of formatAsn1Tree(root, 1)) lines.push(line);
       } catch (e) { lines.push("  (ASN.1 解析失败: " + e.message + ")"); }
     }
     return lines.join("\n");
@@ -1018,17 +1010,11 @@ function pemParseReport(text, p) {
     const id = identifyStructure(der, null);
     lines.push("=== DER 结构解析（无 PEM 头）===");
     lines.push(`输入: ${der.length} 字节（自动识别为 ${/^[0-9a-fA-F\s]+$/.test(t.trim()) ? "hex" : "base64"}）`);
-    lines.push(`DER hex: ${der.length <= 64 ? toHex(der) : toHex(der.slice(0, 64)) + "…(" + der.length + " 字节)"}`);
+    lines.push(`DER hex: ${toHex(der)}`);
     lines.push(`类型: ${id.desc}`);
-    if (id.detail && Object.keys(id.detail).length) {
-      lines.push("结构字段:");
-      for (const [k, v] of Object.entries(id.detail)) {
-        const vs = String(v);
-        lines.push(`  ${k}: ${vs.length > 80 ? vs.slice(0, 80) + "…(" + vs.length + " 字符)" : vs}`);
-      }
-    }
+    appendReportFields(lines, "结构字段:", id.detail);
     lines.push("ASN.1 树:");
-    try { lines.push(...formatAsn1Tree(parseAsn1(der), 1, 4)); }
+    try { for (const line of formatAsn1Tree(parseAsn1(der), 1)) lines.push(line); }
     catch (e) { lines.push("  (ASN.1 解析失败: " + e.message + ")"); }
     return lines.join("\n");
   }
@@ -1108,7 +1094,6 @@ function asn1ParseReport(text, p) {
     }
   }
   const startIndex = Math.max(0, Number((p && p.startIndex) || 0));
-  const truncateOctets = Math.max(0, Number(p && p.truncateOctets != null ? p.truncateOctets : 32));
   if (startIndex > 0) {
     if (startIndex >= der.length) throw new Error("startIndex " + startIndex + " 超出输入长度 " + der.length);
     der = der.slice(startIndex);
@@ -1118,7 +1103,7 @@ function asn1ParseReport(text, p) {
   lines.push("=== ASN.1 DER 解析（X.690 TLV 递归）===");
   lines.push(`输入: ${der.length} 字节`);
   lines.push("");
-  lines.push(...formatAsn1Tree(root, 0, 8, truncateOctets));
+  for (const line of formatAsn1Tree(root)) lines.push(line);
   lines.push("");
   lines.push("=== 顶层节点统计 ===");
   function countNodes(n) {
@@ -1200,11 +1185,7 @@ function sshPubkeyParseReport(text) {
   lines.push(`blob: ${r.blob.length} 字节`);
   lines.push(`SHA256 指纹: ${sshFingerprint(r.blob)}`);
   lines.push("");
-  lines.push("字段:");
-  for (const [k, v] of Object.entries(r.fields)) {
-    const vs = String(v);
-    lines.push(`  ${k}: ${vs.length > 80 ? vs.slice(0, 80) + "…(" + vs.length + " 字符)" : vs}`);
-  }
+  appendReportFields(lines, "字段:", r.fields);
   return lines.join("\n");
 }
 
@@ -1237,7 +1218,7 @@ register({
   id: "asn1Parse",
   cat: "data",
   name: "ASN.1 TLV 解析",
-  desc: "X.690 DER 递归解析（输入 DER hex 或 base64，输出标签/长度/值树 + OID 名称）；可指定起始字节与长值截断长度；tlvMode=tlv 时按 CyberChef Parse TLV 解析通用 Key-Length-Value（可带 BER 长长度）",
+  desc: "X.690 DER 递归解析（输入 DER hex 或 base64，输出完整标签/长度/值树及 OID 名称）；可指定起始字节，或切换通用 TLV 模式（可用 BER 长度）",
   params: [
     { key: "tlvMode", label: "解析模式", type: "select", default: "der", options: [
       { value: "der", label: "ASN.1 DER 递归树" },
@@ -1247,7 +1228,6 @@ register({
     { key: "lengthSize", label: "TLV：Length size（字节）", type: "number", default: 1 },
     { key: "useBER", label: "TLV：使用 BER 长长度", type: "bool", default: false },
     { key: "startIndex", label: "起始字节偏移（DER）", type: "number", default: 0 },
-    { key: "truncateOctets", label: "截断长值（字节，默认 32，DER）", type: "number", default: 32 },
   ],
   run: asn1ParseReport,
   acceptsBytes: true,

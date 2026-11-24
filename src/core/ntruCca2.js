@@ -16,7 +16,7 @@
  * 红线：件内自注册，零 UI 依赖；加密路径全确定性（不消耗随机源），randOps 无需登记。
  */
 
-import { register } from "./registry.js";
+import { register, registerAlias } from "./registry.js";
 import { __ntruReal } from "./ntruReal.js";
 import { decodeUtf8Lossless } from "./bytesIo.js";
 
@@ -160,63 +160,75 @@ async function cca2DecryptCore(set, parts, eBytes) {
 // op 注册：加密 / 解密 两档
 // ============================================================
 
+const cca2EncRun = async (_text, p = {}) => {
+  const pubBytes = hexToBytes(String((p && p.pub) || ""));
+  const { set, h } = parsePub(pubBytes);
+  const msg = te(String(_text ?? ""));
+  if (!msg.length) throw new Error("明文为空");
+  const { eBytes } = await cca2EncryptCore(set, h, msg);
+  return {
+    text: [
+      `=== NTRU CCA-2 加密（${set.name}，hash-based SVES）===`,
+      `参数集 = ${set.name}（N=${set.N}, q=${set.q}）`,
+      `明文 ${msg.length} 字节 → 密文 ${eBytes.length} 字节（含 1 字节参数集标签）`,
+      "",
+      "确定性说明：b = MGF1-SHA256(参数集‖明文)，r 由 (b‖明文) 哈希确定性采样——",
+      "同 (公钥, 明文) 每次加密结果相同（这是重加密校验能成立的前提，非缺陷）。",
+      "解密端会重算 MGF 并与恢复的 b 比对，任何篡改都被拒绝（CCA-2 校验）。",
+    ].join("\n"),
+    files: [{ name: "ntru_cca2_e.hex", mime: "text/plain", bytes: new TextEncoder().encode(bytesToHex(eBytes) + "\n") }],
+  };
+};
+const cca2DecRun = async (_text, p = {}) => {
+  const privBytes = hexToBytes(String((p && p.priv) || ""));
+  const eBytes = hexToBytes(String((p && p.ct) || _text || ""));
+  const { set, parts } = parsePriv(privBytes);
+  if (!eBytes.length) throw new Error("密文为空");
+  if (eBytes[0] !== SETS.indexOf(set) + 1) throw new Error(`密文参数集标签（${eBytes[0]}）与私钥（${SETS.indexOf(set) + 1}）不匹配`);
+  const { msg } = await cca2DecryptCore(set, parts, eBytes);
+  const dec = decodeUtf8Lossless(msg);
+  return {
+    text: [
+      `=== NTRU CCA-2 解密（${set.name}）===`,
+      `CCA-2 校验：✓ 通过（b == MGF1-SHA256(明文)，密文未被篡改）`,
+      `明文 ${msg.length} 字节 = ${bytesToHex(msg)}`,
+      dec.ok ? `按 UTF-8 解释：${dec.text}` : "（非 UTF-8，按 hex 呈现）",
+    ].join("\n"),
+  };
+};
+
+// ============ 合并后的双向 op（旧 ntruCca2Encrypt/ntruCca2Decrypt 变别名；核心函数未改） ============
 register({
-  id: "ntruCca2Encrypt",
-  cat: "asym",
-  family: "ntruCca2",
-  familyLabel: "encrypt",
+  id: "ntruCca2", cat: "asym",
+  name: "NTRU CCA-2 加解密",
+  desc: "NTRU CCA-2 变体双向（hash-based SVES）：encode 的 b 与盲化 r 均由明文哈希确定性派生（同公钥+明文结果可复现）；decode 重算 MGF1-SHA256 与恢复的 b 比对，不一致即拒绝（篡改/异方案密文）。教学演示口径，无官方 KAT，生产请用 ML-KEM；密钥来自「NTRU 密钥生成」",
+  params: [
+    { key: "pub", dir: "encode", label: "公钥（hex，NTRU 密钥生成的公钥，仅加密）", type: "text", default: "", placeholder: "01 开头的公钥 hex" },
+    { sensitive: true, key: "priv", dir: "decode", label: "私钥（hex，NTRU 密钥生成的私钥，仅解密）", type: "text", default: "", placeholder: "01 开头的私钥 hex" },
+    { key: "ct", dir: "decode", label: "密文（hex，仅解密；也可直接作首参输入）", type: "text", default: "", placeholder: "ntru_cca2_e.hex 的内容" },
+  ],
+  encode: cca2EncRun,
+  decode: cca2DecRun,
+});
+
+// 旧 id 兼容（不进 OPS；默认方向按真实语义 Encrypt→encode、Decrypt→decode）
+registerAlias({
+  id: "ntruCca2Encrypt", aliasOf: "ntruCca2", dir: "encode",
   name: "NTRU CCA-2 加密",
   desc: "NTRU CCA-2 变体加密（hash-based SVES，EESS1 v3.1 + P1363.1 映射之上加 MGF1-SHA256 绑定）：b 与盲化 r 均由明文哈希确定性派生，加密全确定可复现；解密端重算 MGF 校验 b——不一致拒绝（重加密校验思想）。教学演示口径，无官方 KAT，生产请用 ML-KEM 等标准 KEM。明文 UTF-8，密钥来自「NTRU 密钥生成」",
   params: [
     { key: "pub", label: "公钥（hex，NTRU 密钥生成的公钥）", type: "text", default: "", placeholder: "01 开头的公钥 hex" },
   ],
-  run: async (_text, p) => {
-    const pubBytes = hexToBytes(String((p && p.pub) || ""));
-    const { set, h } = parsePub(pubBytes);
-    const msg = te(String(_text ?? ""));
-    if (!msg.length) throw new Error("明文为空");
-    const { eBytes } = await cca2EncryptCore(set, h, msg);
-    return {
-      text: [
-        `=== NTRU CCA-2 加密（${set.name}，hash-based SVES）===`,
-        `参数集 = ${set.name}（N=${set.N}, q=${set.q}）`,
-        `明文 ${msg.length} 字节 → 密文 ${eBytes.length} 字节（含 1 字节参数集标签）`,
-        "",
-        "确定性说明：b = MGF1-SHA256(参数集‖明文)，r 由 (b‖明文) 哈希确定性采样——",
-        "同 (公钥, 明文) 每次加密结果相同（这是重加密校验能成立的前提，非缺陷）。",
-        "解密端会重算 MGF 并与恢复的 b 比对，任何篡改都被拒绝（CCA-2 校验）。",
-      ].join("\n"),
-      files: [{ name: "ntru_cca2_e.hex", mime: "text/plain", bytes: new TextEncoder().encode(bytesToHex(eBytes) + "\n") }],
-    };
-  },
+  encode: cca2EncRun, run: cca2EncRun,
 });
-
-register({
-  id: "ntruCca2Decrypt",
-  cat: "asym",
-  family: "ntruCca2",
-  familyLabel: "decrypt",
+registerAlias({
+  id: "ntruCca2Decrypt", aliasOf: "ntruCca2", dir: "decode",
   name: "NTRU CCA-2 解密",
   desc: "NTRU CCA-2 变体解密（与「NTRU CCA-2 加密」配对）：EESS1 解密数学还原 M 后，重算 MGF1-SHA256(明文) 与恢复的 b 比对——不一致即拒绝（密文被篡改）；另做 octL/零填充双重校验。教学演示口径（无官方 KAT），底层 PKE/SVES 与「NTRU 系列原语」同源",
   params: [
     { sensitive: true, key: "priv", label: "私钥（hex，NTRU 密钥生成的私钥）", type: "text", default: "", placeholder: "01 开头的私钥 hex" },
     { key: "ct", label: "密文（hex，含参数集标签）", type: "text", default: "", placeholder: "加密产物 ntru_cca2_e.hex 的内容" },
   ],
-  run: async (_text, p) => {
-    const privBytes = hexToBytes(String((p && p.priv) || ""));
-    const eBytes = hexToBytes(String((p && p.ct) || _text || ""));
-    const { set, parts } = parsePriv(privBytes);
-    if (!eBytes.length) throw new Error("密文为空");
-    if (eBytes[0] !== SETS.indexOf(set) + 1) throw new Error(`密文参数集标签（${eBytes[0]}）与私钥（${SETS.indexOf(set) + 1}）不匹配`);
-    const { msg } = await cca2DecryptCore(set, parts, eBytes);
-    const dec = decodeUtf8Lossless(msg);
-    return {
-      text: [
-        `=== NTRU CCA-2 解密（${set.name}）===`,
-        `CCA-2 校验：✓ 通过（b == MGF1-SHA256(明文)，密文未被篡改）`,
-        `明文 ${msg.length} 字节 = ${bytesToHex(msg)}`,
-        dec.ok ? `按 UTF-8 解释：${dec.text}` : "（非 UTF-8，按 hex 呈现）",
-      ].join("\n"),
-    };
-  },
+  decode: cca2DecRun, run: cca2DecRun,
 });
+

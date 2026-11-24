@@ -4,7 +4,7 @@ export default {
     what: "PEM/DER structure parsing: take that `-----BEGIN ...-----` key/certificate text apart to see whether it's an RSA or EC private key, public key, certificate, or CSR, and what each field is.",
     principle:
       "PEM is just 'header/footer markers + base64-encoded DER'. DER is the binary encoding of ASN.1. Parsing first strips the base64 to get DER, then recursively reads the ASN.1 structure to extract RSA's n/e/d, EC's curve and private key, an X.509 certificate's subject/issuer/validity, etc.",
-    usage: "Paste PEM text (or the hex/base64 of DER); the tool identifies the type and lists the key fields.",
+    usage: "Paste PEM text or DER as hex/Base64, or drop a file. The result and exported report preserve the full DER hex and identified fields such as `modulus_n`. Check where you save any report containing a private key.",
     examples: [
       { in: "-----BEGIN PUBLIC KEY----- ...", out: "type=RSA public key, n=..., e=65537" },
     ],
@@ -16,7 +16,7 @@ export default {
     what: "ASN.1 TLV parsing: almost all certificates, keys, and protocol data are underlyingly ASN.1's nested 'Tag-Length-Value' structure; this tool expands it into a readable tree.",
     principle:
       "In DER encoding each node is a TLV triple: Tag (type, e.g. SEQUENCE/INTEGER/OID), Length (may be multi-byte), Value (content, which may nest further TLVs). Recursive parsing reconstructs the whole structure tree, and OIDs are translated into human-readable names (e.g. 1.2.840.113549.1.1.1 = rsaEncryption).",
-    usage: "Paste the hex or base64 of DER; outputs a hierarchical tree of tag/length/value + OID names.",
+    usage: "Paste DER as hex/Base64 or drop a DER file to see its full tag/length/value tree, long hex values, and OID names. The legacy `truncateOctets` recipe parameter no longer shortens results.",
     examples: [
       { in: "30 06 02 01 05 02 01 03", out: "SEQUENCE { INTEGER 5, INTEGER 3 }", desc: "a sequence containing two integers" },
     ],
@@ -43,7 +43,7 @@ export default {
     what: "SSH public-key parsing: take that `ssh-rsa AAAA...` line from authorized_keys apart to read the algorithm, internal fields (RSA's e/n etc.), and the SHA256 fingerprint.",
     principle:
       "The SSH public-key format is `algorithm-name base64blob comment`. Inside the blob is a concatenation of 'length prefix + field': first the algorithm name repeated, then each parameter in turn (ssh-rsa is e, n; ssh-ed25519 is a 32-byte public key). The fingerprint = SHA256 over the whole blob, then base64.",
-    usage: "Paste one line of SSH public key; the tool extracts the algorithm, fields, and SHA256 fingerprint.",
+    usage: "Paste one SSH public key line to see the algorithm, full fields including RSA `n` and `e`, and the SHA-256 fingerprint.",
     examples: [
       { in: "ssh-rsa AAAAB3Nza...", out: "algorithm=ssh-rsa, e=65537, n=..., SHA256 fingerprint" },
     ],

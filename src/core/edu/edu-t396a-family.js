@@ -27,6 +27,22 @@ export default {
     tips: ["解出来是乱码大数？多半是 n/λ/μ 三者不配对。", "同态相乘后的密文用同一组 λ/μ 解密即可得到明文之和。"],
     aka: ["Paillier 解密", "Paillier decrypt", "paillier 私钥解密", "同态加密解密", "Paillier-79 解密", "paillier 密文还原", "加法同态解密", "Paillier lambda mu 解密", "paillier 解密算法", "同态私钥解密", "Paillier 明文还原", "paillier 解密 CTF"],
   },
+  paillierCipher: {
+    what: "Paillier 同态加解密一体：编码方向用公钥 (n,g) 把明文 m 加密成 $c=g^{m} r^{n} \\bmod n^{2}$；解码方向用私钥 (λ,μ) 还原明文。",
+    principle: "加密取随机 r（gcd(r,n)=1），同一明文每次密文不同（语义安全）。核心性质：$E(m_1)\\cdot E(m_2) \\bmod n^{2}=E(m_1+m_2)$——密文相乘等于明文相加，这是加法同态的来源。解密算 $c^{\\lambda} \\bmod n^{2}$，乘 μ 抵消模 n² 结构后取回 m。",
+    usage: "方向滑块选「编码」= 加密：输入十进制明文 m（须 < n），填公钥 n 与 g（g 留空按 n+1）。选「解码」= 解密：输入十进制密文 c（须 < n²），填 n、λ、μ。旧 id `paillierEncrypt` / `paillierDecrypt` 仍可用，自动落到对应方向。",
+    examples: [
+      { in: "15", param: "编码：n=密钥对的 n，g=n+1", out: "密文 = 84213…（大十进制数）", desc: "每次运行密文不同（随机 r）" },
+      { in: "84213…（密文）", param: "解码：n/λ/μ 来自同一密钥对", out: "15", desc: "还原加密时的明文" },
+    ],
+    tips: [
+      "CTF 里出现「密文相乘后解密」几乎就是 Paillier。",
+      "两条密文相乘再解密 = 明文相加，密文相除 = 明文相减。",
+      "明文必须 < n；密文必须 < n²，超界会直接报错。",
+      "解出来是乱码大数？多半是 n/λ/μ 三者不配对。",
+    ],
+    aka: ["Paillier 加解密", "Paillier 加密解密", "Paillier 公钥加密", "Paillier 私钥解密", "paillier 同态加解密", "加法同态加密", "Paillier-79", "Paillier ciphertext", "同态公钥加密", "Paillier n g lambda mu", "paillier 加密算法", "Paillier CTF 同态", "Paillier 语义安全"],
+  },
   paillierHomAdd: {
     what: "Paillier 同态加：把两条密文相乘，得到「明文之和」的新密文——全程不解密。",
     principle: "$E(m1) \\cdot E(m2) = g^{(m1+m2)} \\cdot (r1 r2)^{n} \\bmod n^{2}$，恰好是 m1+m2 的合法密文。乘以 $E(-m)$ 则等价于减法；与明文常数 k 的 k 次幂等价于加常数。",

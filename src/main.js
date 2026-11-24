@@ -2112,13 +2112,15 @@ function buildBruteResultsCard(results) {
   ));
   const list = el("div", { class: "onekey-brute-list" });
   for (const r of results) {
-    const body = r.timedOut ? t("ui.home.bruteTimeout") : (r.output.length > 1200 ? r.output.slice(0, 1200) + "…" : r.output);
+    const body = r.timedOut ? t("ui.home.bruteTimeout") : r.output;
     const item = el("details", { class: "onekey-brute-item" });
     item.append(el("summary", { class: "onekey-brute-item-sum" },
       el("span", { class: "onekey-brute-name" }, r.name),
       el("span", { class: "onekey-brute-id" }, r.id),
     ));
-    item.append(el("pre", { class: "onekey-brute-out" }, body));
+    const { wrap, getText } = readonlyResultValue(body, { limit: 1200 });
+    item.append(wrap);
+    if (!r.timedOut) attachCardTools(item, getText);
     list.append(item);
   }
   sec.append(list);

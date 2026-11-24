@@ -863,7 +863,7 @@ export function parseMqttStream(bytes) {
           if (msg.qos > 0 && q + 2 <= body.length) { msg.packetId = u16be(body, q); q += 2; }
           msg.payload = body.subarray(q);
           msg.payloadText = isMostlyText(msg.payload, 256) ? latin1(msg.payload) : null;
-          msg.payloadHex = toHex(msg.payload, 0, Math.min(msg.payload.length, 64));
+          msg.payloadHex = toHex(msg.payload);
         }
       } else if (type === 8 || type === 10) {
         if (body.length >= 2) msg.packetId = u16be(body, 0);
@@ -2122,11 +2122,11 @@ function analyzeNetworkPath(container, result, overview, o) {
         lines.push("   #" + (i + 1) + " QoS=" + qos + " retain=" + (p.retain ? 1 : 0) + " dup=" + (p.dup ? 1 : 0) + " 载荷 " + (p.payload ? p.payload.length : 0) + " 字节");
         if (p.payloadText && p.payloadText.trim()) {
           const pt = p.payloadText.trim();
-          lines.push("      文本: " + escapeText(pt.length > 200 ? pt.slice(0, 200) + "…" : pt));
+          lines.push("      文本: " + escapeText(p.payloadText));
           for (const f of findFlags(pt)) if (!result.flags.includes(f)) result.flags.push(f);
           if (!looksLikeLongHex(pt)) plainEntries.push({ source: "MQTT 主题 " + t.topic, how: "payload", text: pt });
         }
-        lines.push("      hex : " + (p.payloadHex || "") + (p.payload && p.payload.length > 32 ? " …" : ""));
+        lines.push("      hex : " + (p.payloadHex || ""));
         for (const v of payloadVariants(p.payload)) {
           const magic = detectMagic(v.bytes);
           if (v.how !== "原始载荷") lines.push("      → " + v.how + " 得 " + v.bytes.length + " 字节，头部 " + toHex(v.bytes, 0, Math.min(8, v.bytes.length)));
@@ -2179,8 +2179,8 @@ function analyzeNetworkPath(container, result, overview, o) {
       lines.push("  body: " + m.bodyRaw.length + " 字节" + (m.truncated ? "（截断）" : ""));
       for (const L of m.layers) {
         if (!L.text) continue;
-        const t = L.text.trim();
-        lines.push("  [" + L.how + "] " + L.bytes.length + " 字节 → " + escapeText(t.length > 400 ? t.slice(0, 400) + "…" : t));
+        const t = L.text;
+        lines.push("  [" + L.how + "] " + L.bytes.length + " 字节 → " + escapeText(t));
         const src = "HTTP " + m.kind + " " + m.startLine + "（" + m.flowLabel + "）";
         if (t) plainEntries.push({ source: src, how: L.how, text: t });
         const fl = findFlags(t);
@@ -2191,7 +2191,7 @@ function analyzeNetworkPath(container, result, overview, o) {
       if (!m.layers.length && m.bodyRaw.length) {
         const t = isMostlyText(m.bodyRaw, 512) ? latin1(m.bodyRaw) : null;
         if (t) {
-          lines.push("  [原文] " + escapeText(t.length > 300 ? t.slice(0, 300) + "…" : t));
+          lines.push("  [原文] " + escapeText(t));
           plainEntries.push({ source: "HTTP " + m.kind + " " + m.startLine + "（" + m.flowLabel + "）", how: "原文", text: t.trim() });
           for (const f of findFlags(t)) if (!result.flags.includes(f)) result.flags.push(f);
         }
@@ -2253,15 +2253,13 @@ function analyzeNetworkPath(container, result, overview, o) {
   if (needTranscript) {
     const lines = [];
     const transcripts = [];
-    let shown = 0;
     for (const flow of flowList) {
       for (const dir of flow.dirs.values()) {
         const bytes = reassembleDir(dir);
         if (bytes.length < 4) continue;
-        if (shown++ > 8) break;
         lines.push("▼ " + dir.from + " → " + dir.to + "（" + dir.segs.length + " 段，重组 " + bytes.length + " 字节）");
         const t = latin1(bytes);
-        lines.push("  " + escapeText(t.length > 1200 ? t.slice(0, 1200) + "…" : t));
+        lines.push("  " + escapeText(t));
         lines.push("");
         transcripts.push({ from: dir.from, to: dir.to, segs: dir.segs.length, bytes: bytes.length, text: t });
         const plines = readablePlainLines(latin1(stripTelnetIac(bytes)));
@@ -2301,14 +2299,14 @@ function analyzeNetworkPath(container, result, overview, o) {
     plainScored.push({ source: e.source, how: e.how, text, score });
   }
   plainScored.sort((a, b) => b.score - a.score);
-  const plainPicked = plainScored.slice(0, 20);
+  const plainPicked = plainScored;
   if (plainPicked.length) {
     const lines = [];
-    lines.push("明文结论: " + plainPicked.length + " 条（flag 优先；单条最多显示 300 字，完整内容见查看/复制）");
+    lines.push("明文结论: " + plainPicked.length + " 条（按相关度排序）");
     lines.push("");
     plainPicked.forEach((e) => {
       lines.push("▼ " + e.source + "  [" + e.how + "]");
-      lines.push("  " + escapeText(e.text.length > 300 ? e.text.slice(0, 300) + "…" : e.text));
+      lines.push("  " + escapeText(e.text));
     });
     const fullText = plainPicked.map((e) => "[" + e.source + "]\n" + e.text).join("\n\n");
     const plainSec = section("traffic-plaintext", "HTTP/TCP/MQTT 明文结论", result.flags.length ? "alert" : "info", "subject", lines.join("\n"));
@@ -2468,4 +2466,3 @@ register({
   acceptsBytes: true,
   run: trafficReadableRun,
 });
-

@@ -424,7 +424,7 @@ export const lexiconOps = runOp("dcode-extras-2026-10/game-lexicon", CAT, "词�
     if (mode === "pattern") {
       const pat = new RegExp("^" + q.trim().replace(/[.+*?^${}()|[\]\\]/g, (c) => (c === "." ? "." : c === "*" ? ".*" : "\\" + c)) + "$", "i");
       const hits = words.filter((w) => pat.test(w));
-      return hits.length ? `命中 ${hits.length} 词：\n${hits.slice(0, 500).join("\n")}${hits.length > 500 ? "\n…（截断到 500）" : ""}` : "无命中";
+      return hits.length ? `命中 ${hits.length} 词：\n${hits.join("\n")}` : "无命中";
     }
     if (mode === "anagram") {
       const key = (w) => [...w].sort().join("");
@@ -469,7 +469,7 @@ export const lexiconOps = runOp("dcode-extras-2026-10/game-lexicon", CAT, "词�
         return true;
       };
       const hits = words.filter(filter);
-      return hits.length ? `剩余候选 ${hits.length} 个：\n${hits.slice(0, 300).join("\n")}${hits.length > 300 ? "\n…（截断到 300）" : ""}` : "无候选（反馈矛盾或词表缺失）";
+      return hits.length ? `剩余候选 ${hits.length} 个：\n${hits.join("\n")}` : "无候选（反馈矛盾或词表缺失）";
     }
     if (mode === "boggle") {
       const rows = parseList(q).map((r) => r.toUpperCase());

@@ -25,7 +25,7 @@
  *
  * 北极星：算法层零 UI 依赖、纯函数、协议函数全部导出，可独立摘取当权威源。
  */
-import { register } from "./registry.js";
+import { register, registerAlias } from "./registry.js";
 import { sm3Bytes } from "./hashExt.js";
 import {
   SM9_N, G1_GEN, G2_GEN,
@@ -467,13 +467,51 @@ register({
   },
 });
 
-// ---- 档④ 加密 ----
+// ---- 档④⑤ 加解密：canonical 单 op 双向（encode 加密 / decode 解密）----
+// 旧 sm9Encrypt / sm9Decrypt 保留为别名（不进 OPS），参数表与旧版逐项同值。
+const SM9_CIPHER_PARAMS = [
+  { key: "masterPub", dir: "encode", label: "加密主公钥 Ppub_e（hex）", type: "text", default: "", placeholder: "G1 点 65 字节（04 前缀）或 64 字节" },
+  { key: "uid", label: "收件人标识 uid", type: "text", default: "Bob", placeholder: "收件人标识（即公钥）" },
+  { key: "hid", dir: "encode", label: "hid（hex）", type: "text", default: "03", placeholder: "加密函数标识，默认 03" },
+  { key: "fixedR", dir: "encode", label: "固定 r（hex，可选）", type: "text", default: "", placeholder: "留空随机；KAT 复现用" },
+  { key: "userPriv", dir: "decode", sensitive: true, label: "用户加密私钥 dB（hex）", type: "text", default: "", placeholder: "G2 点 129 字节（04 前缀）或 128 字节" },
+  { key: "dataEnc", dir: "encode", label: "明文编码", type: "select", default: "utf8", options: ENC_OPTS },
+  { key: "outEnc", dir: "encode", label: "密文输出", type: "select", default: "hex", options: ENC_OPTS },
+];
+function sm9CipherEncode(text, p) {
+  const msg = rawBytesOf(p) || encDecode(text, p.dataEnc || "utf8");
+  const masterPub = parseG1Hex(p.masterPub, "加密主公钥 Ppub_e");
+  const uid = new TextEncoder().encode(String(p.uid == null || p.uid === "" ? "Bob" : p.uid));
+  const hid = parseHid(p.hid, 0x03);
+  const fixedR = parseOptionalScalarHex(p.fixedR, "固定 r");
+  return encEncode(sm9Encrypt(msg, uid, hid, masterPub, fixedR), p.outEnc || "hex");
+}
+function sm9CipherDecode(text, p) {
+  if (p && p.enc != null && String(p.enc).toLowerCase() !== "hex") {
+    throw new Error("enc 该参数已废弃，请改用输入视图");
+  }
+  const view = rawBytesOrNull(p, text);
+  const cipher = view || encDecode(text, "hex");
+  const userPriv = parseG2Hex(p.userPriv, "用户加密私钥 dB");
+  const uid = new TextEncoder().encode(String(p.uid == null || p.uid === "" ? "Bob" : p.uid));
+  return encEncode(sm9Decrypt(cipher, uid, userPriv), "utf8");
+}
 register({
-  id: "sm9Encrypt",
+  id: "sm9Cipher",
   acceptsBytes: true,
   cat: "asym",
   family: "sm9",
-  familyLabel: "encrypt",
+  familyLabel: "cipher",
+  name: "SM9 加解密",
+  desc: "SM9 标识密码加解密（GB/T 38635.4-2020）双向：encode 用加密主公钥（G1）+ 收件人 uid 加密，输出 C1‖C3‖C2；decode 用用户加密私钥（G2）+ uid 还原明文并校验 C3",
+  params: SM9_CIPHER_PARAMS,
+  encode: sm9CipherEncode,
+  decode: sm9CipherDecode,
+});
+
+// 旧 id 兼容：*Encrypt 过去只有 run（=加密）；*Decrypt 过去只有 run（=解密）。
+registerAlias({
+  id: "sm9Encrypt", aliasOf: "sm9Cipher", dir: "encode",
   name: "SM9 加密",
   desc: "SM9 标识加密（GB/T 38635.4-2020）：加密主公钥（G1）+ 收件人 uid → 密文 C1‖C3‖C2（C1 为 64 字节 x‖y）。只需对方标识即可加密，无需对方证书；支持固定 r 复现官方向量",
   params: [
@@ -484,39 +522,19 @@ register({
     { key: "dataEnc", label: "明文编码", type: "select", default: "utf8", options: ENC_OPTS },
     { key: "outEnc", label: "密文输出", type: "select", default: "hex", options: ENC_OPTS },
   ],
-  run: (text, p) => {
-    const msg = rawBytesOf(p) || encDecode(text, p.dataEnc || "utf8");
-    const masterPub = parseG1Hex(p.masterPub, "加密主公钥 Ppub_e");
-    const uid = new TextEncoder().encode(String(p.uid == null || p.uid === "" ? "Bob" : p.uid));
-    const hid = parseHid(p.hid, 0x03);
-    const fixedR = parseOptionalScalarHex(p.fixedR, "固定 r");
-    return encEncode(sm9Encrypt(msg, uid, hid, masterPub, fixedR), p.outEnc || "hex");
-  },
-});
-
-// ---- 档⑤ 解密 ----
-register({
-  id: "sm9Decrypt",
+  encode: sm9CipherEncode, run: sm9CipherEncode,
   acceptsBytes: true,
-  cat: "asym",
-  family: "sm9",
-  familyLabel: "decrypt",
+});
+registerAlias({
+  id: "sm9Decrypt", aliasOf: "sm9Cipher", dir: "decode",
   name: "SM9 解密",
   desc: "SM9 标识解密（GB/T 38635.4-2020）：用户加密私钥（G2）+ 收件人 uid + 密文 C1‖C3‖C2 → 明文。C3 校验失败（篡改/错 uid/错私钥）即报错",
   params: [
     { sensitive: true, key: "userPriv", label: "用户加密私钥 dB（hex）", type: "text", default: "", placeholder: "G2 点 129 字节（04 前缀）或 128 字节" },
     { key: "uid", label: "收件人标识 uid", type: "text", default: "Bob", placeholder: "加密时所用标识" },
   ],
-  run: (text, p) => {
-  if (p && p.enc != null && String(p.enc).toLowerCase() !== "hex") {
-    throw new Error("enc 该参数已废弃，请改用输入视图");
-  }
-    const view = rawBytesOrNull(p, text);
-    const cipher = view || encDecode(text, "hex");
-    const userPriv = parseG2Hex(p.userPriv, "用户加密私钥 dB");
-    const uid = new TextEncoder().encode(String(p.uid == null || p.uid === "" ? "Bob" : p.uid));
-    return encEncode(sm9Decrypt(cipher, uid, userPriv), "utf8");
-  },
+  decode: sm9CipherDecode, run: sm9CipherDecode,
+  acceptsBytes: true,
 });
 
 // 标量 → 32 字节大端（补零）

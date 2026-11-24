@@ -530,7 +530,7 @@ function whitespaceScan(text, p = {}) {
       for (const b of bytes) asciiPreview += (b >= 0x20 && b < 0x7f) ? String.fromCharCode(b) : ".";
       lines.push("");
       lines.push("--- 行尾空白 LSB 尝试（Space=0, Tab=1，每 8 位一字节）---");
-      lines.push(`比特串（${bits.length} 位）：${bits.slice(0, 64)}${bits.length > 64 ? "..." : ""}`);
+      lines.push(`比特串（${bits.length} 位）：${bits}`);
       lines.push(`字节（${byteCount}）：${hexStr}`);
       lines.push(`ASCII 预览：${asciiPreview}`);
     }

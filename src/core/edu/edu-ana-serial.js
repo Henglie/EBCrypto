@@ -4,7 +4,7 @@ export default {
     what: "PEM/DER 结构解析：把 `-----BEGIN ...-----` 那种密钥/证书文本拆开，看清里面是 RSA 还是 EC 私钥、公钥、证书还是 CSR，各字段是什么。",
     principle:
       "PEM 就是「头尾标记 + base64 编码的 DER」。DER 是 ASN.1 的二进制编码。解析先剥 base64 得到 DER，再按 ASN.1 结构递归读出 RSA 的 n/e/d、EC 的曲线与私钥、X.509 证书的主体/颁发者/有效期等。",
-    usage: "粘 PEM 文本（或 DER 的 hex/base64），工具识别类型并列出关键字段。",
+    usage: "粘贴 PEM 或 DER 的 Hex/Base64，也可拖入文件。解析结果和导出报告保留完整 DER Hex 和已识别字段（如 `modulus_n`）；导出含私钥的结果前，请确认保存位置。",
     examples: [
       { in: "-----BEGIN PUBLIC KEY----- ...", out: "类型=RSA公钥, n=..., e=65537" },
     ],
@@ -16,7 +16,7 @@ export default {
     what: "ASN.1 TLV 解析：几乎所有证书、密钥、协议数据底层都是 ASN.1 的「标签-长度-值」嵌套结构，这个工具把它展成一棵可读的树。",
     principle:
       "DER 编码里每个节点是 TLV 三段：Tag（类型，如 SEQUENCE/INTEGER/OID）、Length（长度，可能多字节）、Value（内容，可再嵌 TLV）。递归解析就还原出整棵结构树，OID 会翻成人类可读的名字（如 1.2.840.113549.1.1.1 = rsaEncryption）。",
-    usage: "粘 DER 的 hex 或 base64，输出标签/长度/值的层级树 + OID 名称。",
+    usage: "粘贴 DER 的 Hex/Base64，或拖入 DER 文件。结果保留完整的标签、长度、长值 Hex 和 OID 名称；旧配方中的 `truncateOctets` 不再裁剪结果。",
     examples: [
       { in: "30 06 02 01 05 02 01 03", out: "SEQUENCE { INTEGER 5, INTEGER 3 }", desc: "一个含两整数的序列" },
     ],
@@ -43,7 +43,7 @@ export default {
     what: "SSH 公钥解析：把 authorized_keys 里那行 `ssh-rsa AAAA...` 拆开，读出算法、内部字段（RSA 的 e/n 等）和 SHA256 指纹。",
     principle:
       "SSH 公钥格式是 `算法名 base64blob 注释`。blob 内部是「长度前缀 + 字段」串联：先重复一遍算法名，再依次是各参数（ssh-rsa 是 e、n；ssh-ed25519 是 32 字节公钥）。指纹 = 对整个 blob 做 SHA256 再 base64。",
-    usage: "粘一行 SSH 公钥，工具拆出算法、字段和 SHA256 指纹。",
+    usage: "粘贴一行 SSH 公钥，工具列出算法、完整字段（含 RSA 的 `n` 和 `e`）和 SHA-256 指纹。",
     examples: [
       { in: "ssh-rsa AAAAB3Nza...", out: "算法=ssh-rsa, e=65537, n=..., SHA256指纹" },
     ],

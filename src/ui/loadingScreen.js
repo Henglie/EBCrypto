@@ -30,7 +30,7 @@ function msym(name, cls = "") {
 
 // ---- i18n：优先 window 主表（main.js 暴露 __ebctfT），回退内置中文字典 ----
 const _ZH = {
-  "ui.loading.title": "恒烈CTF编码工具箱",
+  "ui.loading.title": "码小妹",
   "ui.loading.core": "加载核心模块",
   "ui.loading.fonts": "加载字库",
   "ui.loading.ui": "初始化界面",

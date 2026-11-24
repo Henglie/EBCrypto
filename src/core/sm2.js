@@ -14,7 +14,7 @@
  *
  * 北极星：算法零 UI 依赖、纯函数、导出核心，可被独立摘取当权威源。
  */
-import { register } from "./registry.js";
+import { register, registerAlias } from "./registry.js";
 import { sm3Bytes } from "./hashExt.js";
 import { finishBytesDecode } from "./bytesIo.js";
 import { randomBytes as randBytes } from "./randSource.js"; // 统一随机源（默认档 system 逐字节零回归）
@@ -638,12 +638,55 @@ register({
   },
 });
 
-// ---- 档② 加密 ----
+// ---- 档②③ 加解密：canonical 单 op 双向（encode 加密 / decode 解密）----
+// 旧 sm2Encrypt / sm2Decrypt 保留为别名（不进 OPS：列表/搜索/计数只见一个入口），
+// 参数表与旧版逐项同值，旧配方/CSV/MCP/深链行为不变。
+const SM2_ENC_PARAMS = [
+  { key: "pubX", dir: "encode", label: "公钥 X（hex）", type: "text", default: "", placeholder: "32 字节 hex" },
+  { key: "pubY", dir: "encode", label: "公钥 Y（hex）", type: "text", default: "", placeholder: "32 字节 hex" },
+  { sensitive: true, key: "privKey", dir: "decode", label: "私钥 d（hex）", type: "text", default: "", placeholder: "32 字节 hex" },
+  { key: "c1Encoding", dir: "decode", label: "C1 点编码", type: "select", default: "04", options: [{ value: "04", label: "04||x||y（65B）" }, { value: "xy", label: "x||y（64B，无04前缀）" }] },
+  { key: "format", label: "密文格式", type: "select", default: "c1c3c2", options: [
+    { value: "c1c3c2", label: "C1||C3||C2（GB/T 32918.4 序）" },
+    { value: "c1c2c3", label: "C1||C2||C3（GM/T 0009-2023 序）" },
+  ] },
+  { key: "dataEnc", dir: "encode", label: "输入编码", type: "select", default: "utf8", options: ENC_OPTS },
+  { key: "outEnc", dir: "encode", label: "输出编码", type: "select", default: "hex", options: ENC_OPTS },
+];
+function sm2CipherEncode(text, p) {
+  const data = rawBytesOf(p) || encDecode(text, p.dataEnc || "utf8");
+  const px = parseBigHex(p.pubX, "公钥 X"), py = parseBigHex(p.pubY, "公钥 Y");
+  return encEncode(sm2Encrypt(data, px, py, null, p.format || "c1c3c2").cipher, p.outEnc || "hex");
+}
+function sm2CipherDecode(text, p) {
+  if (p && p.enc != null && String(p.enc).toLowerCase() !== "hex") {
+    throw new Error("enc 该参数已废弃，请改用输入视图");
+  }
+  let data = rawBytesOrNull(p, text) || encAutoDecode(text);
+  const encoding = p.c1Encoding || "04";
+  if (!["04", "xy"].includes(encoding)) throw new Error("C1 点编码须为 04 或 xy");
+  if (encoding === "xy") data = concat(new Uint8Array([4]), data);
+  const d = parseBigHex(p.privKey, "私钥");
+  return finishBytesDecode(sm2Decrypt(data, d, p.format || "c1c3c2"), { name: "sm2-decrypted.bin" });
+}
 register({
-  id: "sm2Encrypt",
+  id: "sm2Cipher",
   cat: "asym",
   family: "sm2",
-  familyLabel: "encrypt",
+  familyLabel: "cipher",
+  name: "SM2 加解密",
+  desc: "SM2 公钥加密 / 私钥解密（GB/T 32918.4-2016）双向：encode 用对方公钥 (x,y) 加密，输出 C1||C3||C2 或 C1||C2||C3 序密文；decode 用私钥 d 还原明文并按 C3 校验；密文头支持 04||x||y 与 x||y",
+  params: SM2_ENC_PARAMS,
+  detect: SM2_DETECT,
+  encode: sm2CipherEncode,
+  decode: sm2CipherDecode,
+  acceptsBytes: true,
+});
+
+// 旧 id 兼容：*Encrypt 过去只有 run（=加密）；*Decrypt 过去只有 run（=解密）。
+// 别名保留原参数表与 run 语义，深链/收藏/配方按 canonicalOpId 落到 sm2Cipher。
+registerAlias({
+  id: "sm2Encrypt", aliasOf: "sm2Cipher", dir: "encode",
   name: "SM2 加密",
   desc: "SM2 公钥加密（GB/T 32918.4-2016）：用对方公钥 (x,y) 加密，输出 C1||C3||C2 或 C1||C2||C3 序密文（hex/base64/utf8 可选）",
   params: [
@@ -656,20 +699,11 @@ register({
     { key: "dataEnc", label: "输入编码", type: "select", default: "utf8", options: ENC_OPTS },
     { key: "outEnc", label: "输出编码", type: "select", default: "hex", options: ENC_OPTS },
   ],
-  run: (text, p) => {
-    const data = rawBytesOf(p) || encDecode(text, p.dataEnc || "utf8");
-    const px = parseBigHex(p.pubX, "公钥 X"), py = parseBigHex(p.pubY, "公钥 Y");
-    return encEncode(sm2Encrypt(data, px, py, null, p.format || "c1c3c2").cipher, p.outEnc || "hex");
-  },
+  encode: sm2CipherEncode, run: sm2CipherEncode,
   acceptsBytes: true,
 });
-
-// ---- 档③ 解密 ----
-register({
-  id: "sm2Decrypt",
-  cat: "asym",
-  family: "sm2",
-  familyLabel: "decrypt",
+registerAlias({
+  id: "sm2Decrypt", aliasOf: "sm2Cipher", dir: "decode",
   name: "SM2 解密",
   desc: "SM2 私钥解密（GB/T 32918.4-2016）：输入 SM2 密文（04 前缀，hex/base64），用私钥 d 解出明文。自动适配 C1||C3||C2 / C1||C2||C3 序",
   params: [
@@ -680,18 +714,7 @@ register({
       { value: "c1c2c3", label: "C1||C2||C3（GM/T 0009-2023 序）" },
     ] },
   ],
-  detect: SM2_DETECT,
-  run: (text, p) => {
-    if (p && p.enc != null && String(p.enc).toLowerCase() !== "hex") {
-      throw new Error("enc 该参数已废弃，请改用输入视图");
-    }
-    let data = rawBytesOrNull(p, text) || encAutoDecode(text);
-    const encoding = p.c1Encoding || "04";
-    if (!["04", "xy"].includes(encoding)) throw new Error("C1 点编码须为 04 或 xy");
-    if (encoding === "xy") data = concat(new Uint8Array([4]), data);
-    const d = parseBigHex(p.privKey, "私钥");
-    return finishBytesDecode(sm2Decrypt(data, d, p.format || "c1c3c2"), { name: "sm2-decrypted.bin" });
-  },
+  decode: sm2CipherDecode, run: sm2CipherDecode,
   acceptsBytes: true,
 });
 

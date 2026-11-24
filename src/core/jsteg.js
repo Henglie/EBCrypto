@@ -393,15 +393,15 @@ function jstegDecodeOp(text, p) {
     L.push("× 提取到 0 字节（空消息或载体系数几乎全 0）。");
   }
   L.push("--- 提取结果 ---");
-  L.push(`● Hex（前 256 字节）:`);
-  L.push("  " + bytesToHex(payload, 256));
+  L.push("● Hex:");
+  L.push("  " + bytesToHex(payload, payload.length));
   L.push("");
   const utf8 = utf8Decode(payload);
   L.push("● ASCII 预览:");
   L.push("  " + bytesToAsciiPreview(payload, 512));
   L.push("");
   L.push("● UTF-8 解读:");
-  L.push("  " + (utf8.length > 2048 ? utf8.slice(0, 2048) + " …" : utf8));
+  L.push("  " + utf8);
   L.push("");
 
   const flagHits = new Set();
@@ -417,7 +417,8 @@ function jstegDecodeOp(text, p) {
   L.push("说明:");
   L.push("  · 口径：顺序读 |c|≥2 的 AC 系数幅值 LSB（跳过 0/±1），字节内 LSB-first——与 lukechampine/jsteg 一致。");
   L.push("  · 兼容原版 jsteg CLI（hide 出的图可直接解）；F5/steghide/outguess 等其他算法不适用。");
-  return L.join("\n");
+  const report = L.join("\n");
+  return payload.length && !res.truncated ? { text: report, files: [{ name: "jsteg-payload.bin", mime: "application/octet-stream", bytes: payload }] } : report;
 }
 
 // ============================================================

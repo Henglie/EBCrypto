@@ -67,4 +67,22 @@ export default {
     ],
     aka: ["NTRU 解密", "NTRU decrypt", "NTRUEncrypt 解密", "NTRU 私钥解密", "EESS NTRU decrypt", "格密码解密 NTRU", "NTRU 后量子解密", "NTRU 解密算法", "NTRU Decrypt", "NTRU 密文还原", "NTRU 真参数解密", "NTRU 解密工具"],
   },
+  ntru: {
+    what: "NTRU（真参数）加解密一体：编码方向用公钥 h 把明文加密成等长多项式密文 $e=r\\cdot h+m \\pmod q$；解码方向用私钥 f 做一次卷积、中心化、模 3，还原明文。",
+    principle:
+      "加密三步（EESS 核心口径）：① 明文前拼随机 b 字段与长度字节，按 P1363.1 §9.2.2「3 bit → 2 个三元系数」映射成 m；② 随机抽与私钥同重量的三元多项式 r，算 $R=r\\cdot h \\bmod q$；③ $e=R+m \\bmod q$。\n\n" +
+      "解密四步：① $a=f\\cdot e \\bmod q$；② 系数减到 $(-q/2,\\ q/2]$（中心化，设计参数保证不绕回）；③ mod 3——$p\\cdot r\\cdot g$ 全被 3 整除、$f\\equiv 1 \\pmod p$，噪声消失只剩 m；④ SVES 逆映射解回字节并校验零填充/长度。安全性建立在「nearly shortest vector」格难题上；同一明文每次密文都不同（随机 b 与 r）。",
+    usage: "方向滑块选「编码」= 加密：输入 UTF-8 明文，填公钥 h（hex）、选参数集，seed 留空随机（固定可复现）。选「解码」= 解密：粘贴密文 hex 与私钥（hex），参数集须与加密同一档。明文上限 = ⌈3⌈N/2⌉/8⌉ − db/8 − 2 字节（ees401ep2 为 60 字节）。旧 id `ntruEncrypt` / `ntruDecrypt` 仍可用，自动落到对应方向。",
+    examples: [
+      { in: "flag{ntru_is_fun}", param: "编码：set=ees401ep2 + 公钥 hex", out: "参数集: ees401ep2（N=401, q=2048）\n密文 e (552 B, hex): 03a9…", desc: "同明文再加密一次，密文完全不同" },
+      { in: "密文 hex（552 B）", param: "解码：set=ees401ep2 + 私钥 hex", out: "明文 (14 B):\nflag{ntru_is_fun}", desc: "改密文任意系数再解，多半报错或得到损坏明文" },
+    ],
+    tips: [
+      "NTRU 是「加噪 → 模 q」的格加密：密文里 e = 噪声 + 消息，解密靠「噪声的 p 倍模 3 归零」；CTF 里认准「q=2048、系数 0~2047 的密文串」。",
+      "明文长度上限比 RSA 小得多（60 字节级），实战里 NTRU 只用来封装对称密钥，大文件用 AES 加。",
+      "密文/私钥前都有一个 tag 字节标识参数集，档位选错会直接报 tag 不符——先对齐参数集再排查别的。",
+      "本实现是 EESS v3.1 核心 PKE（被动安全）：不含完整性校验，改个别系数可能只损坏个别字节而不报错（可塑性），不要当生产库用。",
+    ],
+    aka: ["NTRU 加解密", "NTRU 加密解密", "NTRUEncrypt 加解密", "NTRU 公钥加密", "NTRU 私钥解密", "EESS NTRU", "格密码 NTRU", "NTRU 后量子加密", "NTRU Encrypt", "NTRU Decrypt", "ees401ep2", "NTRU 真参数加解密", "NTRU 双向"],
+  },
 };

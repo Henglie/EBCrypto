@@ -151,8 +151,8 @@ export default {
   mcNbtView: {
     what: "Minecraft NBT tree viewer: a browser NBTExplorer that decompresses any Minecraft Java Edition NBT (level.dat/*.dat/playerdata/structure .nbt etc.) and fully dumps it as an indented, foldable readable text tree. Supports path filtering to locate a subtree.",
     principle:
-      "Reuses the big-endian NBT parser, auto-detecting gzip/zlib/raw NBT storage. After parsing it recursively dumps each node: showing the tag type name (TAG_Compound/TAG_List/TAG_String/TAG_Long…), key, value; List marks its element type and length; Long/LongArray print as-is with BigInt without precision loss; large arrays are truncated to the first N items. Path filtering supports `Data.Player.Inventory` or `a[0].b` syntax, dumping only the matched subtree.",
-    usage: "Input an NBT file (hex/base64/drop a file); optionally set path to locate a subtree (e.g. Data.Player.Inventory), tune maxArray/maxDepth to control truncation and depth. Outputs the full or subtree text tree.",
+      "The big-endian NBT parser auto-detects gzip/zlib/raw storage. It lists tag types, keys, and full values. Lists include their element type and length; Long and LongArray use BigInt to preserve precision. A path filter dumps only the matched subtree.",
+    usage: "Drop an NBT file or enter it as hex/Base64. Set `path` to a subtree such as `Data.Player.Inventory` or `a[0].b`. If the node budget is exceeded, narrow the path and retry.",
     examples: [
       { in: "level.dat bytes", param: "path=Data.GameRules", out: "TAG_Compound 'GameRules': ... a tree of each rule's key-value", desc: "Path filtering shows only the GameRules subtree" },
     ],

@@ -765,7 +765,7 @@ export function formatSshsigResult(result) {
   if (result.signatureAlg) out.push(`签名算法：${result.signatureAlg} · ${result.signatureHash}`);
   out.push("");
   out.push("[检查]");
-  out.push(`  消息哈希：${result.hashAlg}（${result.messageLen} 字节 → ${result.messageHashHex ? result.messageHashHex.slice(0, 32) + "…" : "(未计算)"}）`);
+  out.push(`  消息哈希：${result.hashAlg}（${result.messageLen} 字节 → ${result.messageHashHex || "(未计算)"}）`);
   out.push(`  signed data：${result.signedDataLen} 字节（magic + namespace + reserved + hash_algorithm + H(message)）`);
   out.push(`  签名验证：${result.checks.signature ? "通过" : "失败"}`);
   out.push(`  命名空间：${result.checks.namespace === null ? "未指定期望（使用签名内值）" : result.checks.namespace ? "与期望一致" : "与期望不一致"}`);

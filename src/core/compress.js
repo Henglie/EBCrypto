@@ -150,7 +150,7 @@ function bytesToOutput(bytes) {
     }
     if (s.length > 0 && ctrl / s.length < 0.1) return { text: s, mode: "text" };
   } catch { /* 非合法 UTF-8，走 hex */ }
-  return { text: bytesToHex(bytes, 4096), mode: "hex" };
+  return { text: bytesToHex(bytes, bytes.length), mode: "hex" };
 }
 
 // ============================================================
@@ -1164,9 +1164,8 @@ async function b64CompressedProbeRun(text, p) {
     lines.push("");
     lines.push("⚠ 当前环境无 DecompressionStream（浏览器实测；node 18+ 实验性可用）");
     lines.push("仅列出 base64 段，不做解压试探：");
-    for (const s of segs.slice(0, 10)) {
-      lines.push("  @0x" + s.offset.toString(16) + " (len=" + s.text.length + "): " +
-        s.text.slice(0, 48) + (s.text.length > 48 ? "…" : ""));
+    for (const s of segs) {
+      lines.push("  @0x" + s.offset.toString(16) + " (len=" + s.text.length + "): " + s.text);
     }
     return lines.join("\n");
   }
@@ -1194,12 +1193,7 @@ async function b64CompressedProbeRun(text, p) {
       if (decomp) {
         lines.push("  解压(" + decomp.format + "): " + decomp.out.length + " 字节");
         const r = bytesToOutput(decomp.out);
-        if (r.mode === "text") {
-          const preview = r.text.length > 200 ? r.text.slice(0, 200) + " …" : r.text;
-          lines.push("  内容(文本): " + preview);
-        } else {
-          lines.push("  内容(hex): " + r.text.slice(0, 200));
-        }
+        lines.push("  内容(" + (r.mode === "text" ? "文本" : "hex") + "): " + r.text);
       }
     }
   }

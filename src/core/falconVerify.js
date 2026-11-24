@@ -440,7 +440,7 @@ register({
       `长度：${pkBytes.length} 字节 = 头 1 + 系数 ${P.pkLen - 1}（${P.n} 系数 × 14 bit，MSB-first 位流，⌈14·${P.n}/8⌉ = ${P.pkLen - 1}）`,
       `系数：${P.n} 个，全部 < q = ${Q} ✓；范围 [${min}, ${max}]，均值 ${(sum / P.n).toFixed(1)}（均匀分布期望 ≈ ${Q / 2}）`,
       `前 8 个系数（十进制）：${h.slice(0, 8).join(", ")}`,
-      `多项式 h（hex，前 32 字节重打）：${toHex(Uint8Array.from(h.slice(0, 18).flatMap((v) => [v >> 8, v & 255])))} …`,
+      `多项式 h（每个系数用两个大端字节表示，Hex）：${toHex(Uint8Array.from(h.flatMap((v) => [v >> 8, v & 255])))}`,
       "",
       `说明：公钥即 h = g/f mod (x^${P.n}+1, ${Q})（NTRU 格式）；验签用配套「Falcon 验签」op。`,
     ];
@@ -483,7 +483,7 @@ register({
       `签名封装：${fmtName}`,
       `nonce（40 字节）：${r.nonceHex}`,
       `解码系数：${r.n} 个，s2 范围 [${r.s2min}, ${r.s2max}]`,
-      `消息（${r.msgUsedHex.length / 2} 字节）：${r.msgUsedHex.length > 96 ? r.msgUsedHex.slice(0, 96) + "…" : r.msgUsedHex}`,
+      `消息（${r.msgUsedHex.length / 2} 字节）：${r.msgUsedHex}`,
       "",
       `验签方程（算法 16）：c = HashToPoint(nonce‖msg)；s1 = c − s2·h mod (x^${r.n}+1, ${Q})，居中 [-${HALF_Q}, ${HALF_Q}]`,
       `范数：‖(s1, s2)‖² = ${r.sqn.toLocaleString("en-US")} ${r.valid ? "≤" : ">"} ⌊β²⌋ = ${P.beta2.toLocaleString("en-US")} → ${r.valid ? "接受" : "拒绝"}`,

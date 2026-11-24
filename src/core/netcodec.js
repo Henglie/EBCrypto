@@ -286,7 +286,7 @@ function parseUserAgent(text) {
   const ua = String(text).trim();
   if (!ua) throw new Error("UA: 空输入");
   const out = [];
-  out.push("原始 UA:    " + (ua.length > 80 ? ua.slice(0, 80) + " …" : ua));
+  out.push("原始 UA:    " + ua);
 
  // 浏览器（顺序敏感：Edge/Opera 基于 Chromium，须先于 Chrome 判定）
   let browser = "未知", browserVer = "";
