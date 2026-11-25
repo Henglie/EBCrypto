@@ -3,7 +3,7 @@
 // 图片走本地 public/codeimages/，IntersectionObserver 懒加载，点击看大图。
 // 自持 el/msym（icon 注水），tt/window.__ebctfT 兜底 i18n（不进主表）。零外发。
 import { icon as iconSvg } from "./icons.js";
-import { attachModalLifecycle } from "./modalLifecycle.js";
+import { attachModalLifecycle, closeModalSurface } from "./modalLifecycle.js";
 import { connectSpecialDraft, newDraftIdentity } from "./workspaceDrafts.js";
 // A0 槽位布局 sidecar：仅在打开本页时按需 fetch（public/data/codeimage/codeImageLayout.bin），
 // 不参与分类；加载失败静默回退，不影响识图。
@@ -690,15 +690,13 @@ let _modalEl = null;
 let _lifecycle = null;
 
 function closeModal(immediate = false) {
-  if (_lifecycle) { _lifecycle.release(); _lifecycle = null; }
+  const life = _lifecycle;
+  _lifecycle = null;
   const ov = _modalEl;
   _modalEl = null;
   if (!ov) return;
-  if (immediate || ov._closing) { ov.remove(); return; }
-  ov._closing = true;
-  ov.classList.add("ci-closing");
-  ov.addEventListener("animationend", event => { if (event.target === ov) ov.remove(); });
-  setTimeout(() => { if (ov.isConnected) ov.remove(); }, 250 * (Number(document.documentElement.dataset.motionSpeed) || 1) + 80);
+  if (immediate === true) { life?.release(); ov.remove(); return; }
+  closeModalSurface(ov);
 }
 
 export function openCodeImagePreview({ src, title, catalogItem }) {

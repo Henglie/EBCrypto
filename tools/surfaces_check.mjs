@@ -37,7 +37,8 @@ async function paint(selector) {
   return result;
 }
 async function openEnvironment() {
-  if (await page.locator('#btnMoreActions').isVisible() && !await page.locator('#btnFont').isVisible()) await page.locator('#btnMoreActions').click();
+  // A closing menu remains painted until its exit ends; intent comes from ARIA.
+  if (await page.locator('#btnMoreActions').isVisible() && await page.locator('#btnMoreActions').getAttribute('aria-expanded') !== 'true') await page.locator('#btnMoreActions').click();
   await page.locator('#btnFont').click(); await page.locator('.env-panel').waitFor(); await settle();
 }
 async function closeEnvironment() {

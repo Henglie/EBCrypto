@@ -45,7 +45,7 @@ import {
 import { ensureAll } from "../core/lazyCore.js";
 import { readFileAudioPreviewMinutes, saveFileAudioPreviewMinutes, fmtAudioPreviewMinutes } from "../core/audioPreview.js";
 import { icon as iconSvg } from "./icons.js";
-import { attachModalLifecycle } from "./modalLifecycle.js";
+import { attachModalLifecycle, closeModalSurface } from "./modalLifecycle.js";
 
 // ---- 轻量 DOM 工具（与 envPanel.js 同形；注意 false 不当属性写，防 disabled="false" 坑）----
 function el(tag, attrs = {}, ...children) {
@@ -686,15 +686,14 @@ export function openDecodeStrength(opt = {}) {
 
 /** 关闭弹窗。 */
 export function closeDecodeStrength(immediate = false) {
-  if (_lifecycle) { _lifecycle.release(); _lifecycle = null; }
+  const life = _lifecycle;
+  _lifecycle = null;
   clearTimeout(_debounce);
   const ov = _overlay;
   _overlay = null;
   if (!ov) return;
-  if (immediate || ov._closing) { ov.remove(); return; }
-  ov._closing = true;
-  ov.classList.add("ds-closing");
-  setTimeout(() => { if (ov.isConnected) ov.remove(); }, 250);
+  if (immediate === true) { life?.release(); ov.remove(); return; }
+  closeModalSurface(ov);
 }
 
 /** 档位显示名（首页按钮上显示当前档用）。 */

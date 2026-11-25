@@ -1,5 +1,5 @@
 import { syncSegmentedControl } from "./sharedControls.js";
-import { enterSurface } from './expressiveMotion.js';
+import { enterSurface, exitSurface } from './expressiveMotion.js';
 
 const attached = new WeakMap();
 let sequence = 0;
@@ -39,7 +39,10 @@ export function attachFamilyOverflow(root, { moreLabel, ariaLabel } = {}) {
   const schedule = () => { if (!disposed && !frame) frame = requestAnimationFrame(() => { frame = 0; layout(); }); };
   function close(restoreFocus = false) {
     if (!popup) return;
-    popup.remove(); popup = null; setAttr(more, "aria-expanded", "false");
+    const closing = popup;
+    popup = null; setAttr(more, "aria-expanded", "false");
+    closing.removeAttribute('id');
+    exitSurface(closing, () => closing.remove());
     document.removeEventListener("pointerdown", outside, true);
     document.removeEventListener("keydown", dismiss, true);
     if (restoreFocus && root.isConnected && !more.hidden) more.focus({ preventScroll: true });

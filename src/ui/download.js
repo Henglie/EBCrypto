@@ -1,7 +1,7 @@
 import { t } from "../i18n/index.js";
 import { ensureExpStyles } from "./expandableInput.js";
 import { icon } from "./icons.js";
-import { attachModalLifecycle } from "./modalLifecycle.js";
+import { attachModalLifecycle, closeModalSurface } from "./modalLifecycle.js";
 
 export function downloadBytes(bytes, filename, mime) {
   const blob = new Blob([bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || [])], { type: mime || "application/octet-stream" });
@@ -49,8 +49,7 @@ export function cloudWarnGate(downloadFn) {
   function close() {
     if (closed) return;
     closed = true;
-    overlay.classList.add("exp-closing");
-    setTimeout(() => { overlay.remove(); if (focus?.isConnected) focus.focus(); }, 250);
+    closeModalSurface(overlay);
   }
   cancel.onclick = close;
   const closeButton = document.createElement("button");

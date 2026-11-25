@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "scope": "Current Web UI and node-view UI; new modules require an explicit owner before integration",
+  "deferred": ["Node-canvas collapse height/port/edge coordinated geometry: integrate after the node reconstruction contract is frozen; direct manipulation remains immediate"],
+  "groups": {
+    "motion-runtime": {
+      "behavior": "Shared timeline ownership, preference, segmentation or modal lifecycle; no business timing",
+      "modules": ["expressiveMotion", "motionPreferences", "spring", "sharedControls", "modalLifecycle"]
+    },
+    "anchored-surface": {
+      "behavior": "enterSurface + exitSurface; close becomes inert immediately; latest intent owns completion",
+      "modules": ["textContextMenu", "favorites", "familyOverflow", "envPanel", "topbarMenu"]
+    },
+    "paired-modal": {
+      "behavior": "attachModalLifecycle + closeModalSurface; scrim and panel share teardown; resource work stays independent",
+      "modules": ["expandableInput", "codeImageViewer", "customImplEditor", "decodeStrength", "download", "imageOpsViewer", "localToolsPage", "randSecurePanel", "recipeView", "smartResultView", "stegSolvePage", "stegSolveView"]
+    },
+    "state-controls-and-view": {
+      "behavior": "Semantic control state layers, native details disclosure, route fade; pointer-coupled editors/canvas/drag stay 1:1",
+      "modules": ["allOpsView", "batchPanel", "batchCsvSection", "customCodeInput", "editorToolbar", "exhaustiveView", "fieldTools", "historyPanel", "inputEnhance", "ioArea", "ioCodingToolbar", "ioEditorFrame", "offlinePackPanel", "opFeedback", "opWorkbench", "pluginPanel", "quickConv", "resultActions", "resultFilter", "resultToc", "specialWorkbench", "universalViewer"]
+    },
+    "existing-explicit-owner": {
+      "behavior": "Boot screen uses its opacity transition; drawer uses paired CSS transitions with native reversal and pointer/focus lifecycle",
+      "modules": ["loadingScreen", "mobileDrawer"]
+    },
+    "node-public-interaction": {
+      "behavior": "Shared semantic controls, parameter-region fade and category disclosure; canvas geometry is explicitly deferred",
+      "modules": ["../nodeview/ui/canvas", "../nodeview/ui/inspector", "../nodeview/ui/library", "../nodeview/ui/nodeCard"]
+    },
+    "node-model-support": {
+      "behavior": "UI model/history functions have no interactive surface; callers own motion",
+      "modules": ["../nodeview/ui/canvasHistory", "../nodeview/ui/canvasModel"]
+    },
+    "non-interactive-support": {
+      "behavior": "No interactive surface: resource/data/storage/shape utilities; callers own visible transitions",
+      "modules": ["appBranding", "continuousCorners", "continuousCornersRuntime", "draftBinary", "dynamicColor", "editHistory", "fontLoader", "icons", "katexLoader", "layoutPreferences", "pinyinSearch", "pinyinTable", "recipeStore", "searchSynonyms", "targetRegexEngine", "targetRegexWorker", "themePicker", "workspaceDrafts"]
+    }
+  }
+}

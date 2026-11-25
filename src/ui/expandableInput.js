@@ -21,9 +21,8 @@
  */
 
 import { icon as iconSvg } from "./icons.js";
-import { attachModalLifecycle } from "./modalLifecycle.js";
+import { attachModalLifecycle, closeModalSurface } from "./modalLifecycle.js";
 import { attachEditHistory } from "./editHistory.js";
-import { enterSurface, exitSurface } from './expressiveMotion.js';
 
 // ---- 样式一次性注入（幂等） ----
 // export：main.js 的 openSectionView 也复用 .exp-* 遮罩/卡片样式，需在无输入框实例化的
@@ -125,6 +124,7 @@ export function openExpandModal(initialValue = "", onSave, labels = {}) {
     saveLabel = "保存",
     readonly = false,
     closeOnClear = readonly,
+    onClose,
   } = labels;
 
   const overlay = document.createElement("div");
@@ -177,20 +177,18 @@ export function openExpandModal(initialValue = "", onSave, labels = {}) {
   dialog.append(head, ta, foot);
   overlay.append(dialog);
   document.body.append(overlay);
-  enterSurface(dialog);
 
   let closed = false;
   function close() {
     if (closed) return;
     closed = true;
+    onClose?.();
     document.removeEventListener("keydown", onKey);
     window.removeEventListener("hashchange", close);
     window.removeEventListener("popstate", close);
     window.removeEventListener('ebctf:workspace-clear', close);
-    overlay.style.pointerEvents = 'none';
-    exitSurface(dialog, () => {
+    closeModalSurface(overlay, () => {
       overlay.remove();
-      if (previousFocus?.isConnected) previousFocus.focus();
     });
   }
   function commit() {
@@ -214,6 +212,7 @@ export function openExpandModal(initialValue = "", onSave, labels = {}) {
 
  // 聚焦 + 光标置末尾
   requestAnimationFrame(() => {
+    if (closed || !overlay.isConnected) return;
     ta.focus();
     const len = ta.value.length;
     try { ta.setSelectionRange(len, len); } catch { /* number 型不支持忽略 */ }

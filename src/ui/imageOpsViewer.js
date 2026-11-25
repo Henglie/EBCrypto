@@ -10,7 +10,7 @@
 // 不写回、不覆盖原始文件；导出与「用作输入」都基于当前编辑结果新建 PNG。
 
 import { icon as iconSvg } from "./icons.js";
-import { attachModalLifecycle } from "./modalLifecycle.js";
+import { attachModalLifecycle, closeModalSurface } from "./modalLifecycle.js";
 import { syncRange } from "./sharedControls.js";
 import {
   isImageLike,
@@ -1100,9 +1100,7 @@ export function openImageOpsViewer(source, opts = {}) {
     if (adjustRaf) { cancelAnimationFrame(adjustRaf); adjustRaf = 0; }
     if (resizeObserver) { resizeObserver.disconnect(); resizeObserver = null; }
     window.removeEventListener("resize", onWindowResize);
-    if (lifecycle) { lifecycle.release(); lifecycle = null; }
-    overlay.classList.add("imgops-closing");
-    setTimeout(() => overlay.remove(), 200);
+    closeModalSurface(overlay);
   }
 
   function onWindowResize() {

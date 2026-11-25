@@ -39,6 +39,7 @@
  */
 import { RAND_MODES, getRandConfig, setRandConfig, onRandConfigChange, isServerReady, isMouseReady, warmupServer, sha256HexOfUtf8 } from "../core/randSource.js";
 import { icon as iconSvg } from "./icons.js";
+import { attachModalLifecycle, closeModalSurface } from './modalLifecycle.js';
 
 const RAND_KEY = "ebctf_rand_config";
 // 下拉只列增强档；系统档由「关掉开关」表达（不再出现在下拉里）。鼠标熵是**辅助项**，不是档位。
@@ -303,7 +304,7 @@ function openMouseCollector(onDone, onCancel) {
   let bits = 0;
 
   const overlay = el("div", { class: "rand-mouse-overlay" });
-  const card = el("div", { class: "rand-mouse-card" });
+  const card = el("div", { class: "rand-mouse-card", role: 'dialog', 'aria-modal': 'true', 'aria-label': t('ui.rand.mouseTitle') });
   card.append(el("div", { class: "rand-mouse-title" }, msym("vpn_key"), t("ui.rand.mouseTitle")));
   card.append(el("div", { class: "rand-mouse-hint" }, t("ui.rand.mouseHint")));
 
@@ -362,14 +363,14 @@ function openMouseCollector(onDone, onCancel) {
   pad.addEventListener("mousemove", mm);
   pad.addEventListener("touchmove", tm, { passive: true });
 
+  let closed = false;
   const close = () => {
+    if (closed) return;
+    closed = true;
     pad.removeEventListener("mousemove", mm);
     pad.removeEventListener("touchmove", tm);
-    document.removeEventListener("keydown", onKey);
-    overlay.remove();
+    closeModalSurface(overlay);
   };
-  const onKey = (e) => { if (e.key === "Escape") { close(); onCancel && onCancel(); } };
-  document.addEventListener("keydown", onKey);
 
   doneBtn.addEventListener("click", () => {
     if (doneBtn.disabled) return;
@@ -378,9 +379,9 @@ function openMouseCollector(onDone, onCancel) {
     onDone(seed, Math.round(bits));
   });
   cancelBtn.addEventListener("click", () => { close(); onCancel && onCancel(); });
-  overlay.addEventListener("mousedown", (e) => { if (e.target === overlay) { close(); onCancel && onCancel(); } });
 
   document.body.append(overlay);
+  attachModalLifecycle(overlay, { dialog: card, onClose: () => { close(); onCancel?.(); }, initialFocus: cancelBtn });
   refresh();
 }
 

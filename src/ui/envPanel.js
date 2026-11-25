@@ -18,12 +18,12 @@
 import { ACCENT_PRESETS, DEFAULT_ACCENT, resetAccent } from "./dynamicColor.js";
 import { icon as iconSvg } from "./icons.js";
 import { THEME_VARIANTS } from "./themePicker.js";
-import { attachModalLifecycle } from "./modalLifecycle.js";
+import { attachModalLifecycle, closeModalSurface } from "./modalLifecycle.js";
 import { getLocale } from "../i18n/index.js";
 import { getMotionSpeed, setMotionSpeed } from "./motionPreferences.js";
 import { getOpLayout, setOpLayout } from "./layoutPreferences.js";
 import { clearWorkspaceDrafts, resetWorkspaceDrafts } from "./workspaceDrafts.js";
-import { enterSurface } from './expressiveMotion.js';
+import { enterSurface, exitSurface } from './expressiveMotion.js';
 // 「增强随机安全」全局入口（并入本环境面板）。独立组件，自带轻量 el/i18n。
 import { renderRandSecureSection } from "./randSecurePanel.js";
 // 仅用于全局 pack-miss 提示（离线包缺失时告知用户）；离线包管理 UI 已迁至扩展面板。
@@ -231,7 +231,7 @@ export function closeEnvPanel() {
   window.visualViewport?.removeEventListener("scroll", repositionPanel);
   _positionAnchor = null;
   if (_offDocClick) { document.removeEventListener("click", _offDocClick); _offDocClick = null; }
-  if (_panel) { _panel.remove(); _panel = null; }
+  if (_panel) { const closing = _panel; _panel = null; exitSurface(closing, () => closing.remove()); }
   _detecting = false;
 }
 
@@ -360,11 +360,9 @@ function confirmHardReset() {
     el("div", { class: "env-reset-dialog-actions" }, cancelBtn, okBtn),
   );
   function close() {
-    if (lifecycle) { lifecycle.release(); lifecycle = null; }
     if (mask._closing) return;
     mask._closing = true;
-    mask.classList.add("env-reset-closing");
-    setTimeout(() => { if (mask.isConnected) mask.remove(); }, 250);
+    closeModalSurface(mask);
   }
   let lifecycle = null;
   mask.append(card);

@@ -1,4 +1,6 @@
-import { HLSpring } from "./spring.js";
+import { openExpandModal } from "./expandableInput.js";
+import { enterSurface, exitSurface } from "./expressiveMotion.js";
+import { t } from "../i18n/index.js";
 // textContextMenu.js — 编辑框自定义右键文本处理菜单（对标同类工具「文本区右键菜单」）
 // 零耦合：自持样式注入、菜单 DOM、纯本地文本处理，零外发。
 // 用法：attachTextContextMenu(area, opts) 在 area 上绑 contextmenu，弹 M3 风格菜单，处理后写回 area.value。
@@ -217,7 +219,7 @@ function hanziToPinyin(text) {
 }
 
 /* ============================ 菜单定义 ============================ */
-// 需要用户输入的项走 prompt（纯本地阻塞输入，同类工具同款交互）。
+// Character input uses the shared local editor surface and modal lifecycle.
 const EDIT_ITEMS = [
   { label: "智能分段", fn: smartParagraph },
   { label: "删除空格与换行", fn: removeSpacesAndBreaks },
@@ -225,15 +227,13 @@ const EDIT_ITEMS = [
   { label: "删除换行", fn: removeBreaks },
   { label: "删除空格", fn: removeSpaces },
   { sep: true },
-  { label: "删除任意字符…", fn: (t) => {
-      const ch = prompt("输入要删除的字符（可多个）：");
-      if (ch == null || ch === "") return t;
-      return Array.from(t).filter((c) => !ch.includes(c)).join("");
+  { labelKey: "ui.textMenu.removeChars", inputKey: "ui.textMenu.removePrompt", fn: (text, chars) => {
+      const set = new Set(chars);
+      return Array.from(text).filter(c => !set.has(c)).join("");
     } },
-  { label: "替换指定字符为空格…", fn: (t) => {
-      const ch = prompt("输入要替换为空格的字符（可多个）：");
-      if (ch == null || ch === "") return t;
-      return Array.from(t).map((c) => (ch.includes(c) ? " " : c)).join("");
+  { labelKey: "ui.textMenu.spaceChars", inputKey: "ui.textMenu.spacePrompt", fn: (text, chars) => {
+      const set = new Set(chars);
+      return Array.from(text).map(c => set.has(c) ? " " : c).join("");
     } },
   { label: "字符去重", fn: dedupeChars },
   { sep: true },
@@ -261,10 +261,11 @@ function injectStyle() {
   box-shadow:var(--el-3,0 4px 12px rgba(0,0,0,.4));
   font-family:var(--font,system-ui);font-size:var(--fs-base,15px);
   user-select:none;-webkit-user-select:none;}
-.tcm-item{padding:6px 12px;border-radius:var(--r-sm,8px);cursor:pointer;white-space:nowrap;
+.tcm-item{display:block;width:100%;border:0;background:transparent;color:inherit;font:inherit;text-align:start;padding:6px 12px;border-radius:var(--r-sm,8px);cursor:pointer;white-space:nowrap;
   transition:background var(--dur-short,.12s) var(--ease,ease);}
 .tcm-item:hover{background:var(--surface-hi,#3a3a3a);}
-.tcm-item:active{transform:scale(.98);}
+.tcm-item:focus-visible{outline:2px solid var(--primary);outline-offset:-2px;}
+.tcm-item:active{background:var(--surface-hi);}
 .tcm-sep{height:1px;margin:4px 6px;background:var(--outline-var,#555);opacity:.5;}
 `;
   const st = document.createElement("style");
@@ -273,21 +274,18 @@ function injectStyle() {
 }
 
 let openMenu = null;
-const _springOn = () => document.documentElement.classList.contains("spring-motion");
 function closeMenu() {
   if (openMenu) {
     const m = openMenu;
     openMenu = null;
-    if (_springOn() && !m.dataset.closing) {
-      m.dataset.closing = "1";
-      m.style.pointerEvents = "none";
-      HLSpring.to(m, { scale: 0.92, opacity: 0 }, { preset: "dur150", onRest: (el) => el.remove() });
-    } else m.remove();
+    exitSurface(m, () => m.remove());
   }
   document.removeEventListener("pointerdown", onDocDown, true);
   document.removeEventListener("keydown", onKeyDown, true);
   window.removeEventListener("blur", closeMenu);
   window.removeEventListener("resize", closeMenu);
+  window.removeEventListener("hashchange", closeMenu);
+  window.removeEventListener("ebctf:workspace-clear", closeMenu);
 }
 function onDocDown(e) { if (openMenu && !openMenu.contains(e.target)) closeMenu(); }
 function onKeyDown(e) { if (e.key === "Escape") { e.preventDefault(); closeMenu(); } }
@@ -298,21 +296,38 @@ function buildMenu(items, area, opts, x, y) {
   const onChange = typeof opts.onChange === "function" ? opts.onChange : null;
   const menu = document.createElement("div");
   menu.className = "tcm-menu";
+  menu.setAttribute("role", "menu");
   for (const it of items) {
     if (it.sep) { const d = document.createElement("div"); d.className = "tcm-sep"; menu.append(d); continue; }
-    const el = document.createElement("div");
+    const el = document.createElement("button");
+    el.type = "button";
+    el.setAttribute("role", "menuitem");
     el.className = "tcm-item";
-    el.textContent = it.label;
+    el.textContent = it.labelKey ? t(it.labelKey) : it.label;
     el.addEventListener("click", () => {
+      closeMenu();
       try {
         if (it.action) it.action(area);
         else {
           const before = area.value == null ? "" : String(area.value);
+          if (it.inputKey) {
+            const route = location.hash;
+            const abort = new AbortController();
+            let edited = false;
+            area.addEventListener("input", () => { edited = true; }, { signal: abort.signal });
+            area.focus({ preventScroll: true });
+            openExpandModal("", chars => {
+              if (!chars || edited || !area.isConnected || location.hash !== route || String(area.value ?? "") !== before) return;
+              const after = it.fn(before, chars);
+              if (after !== before) { area.value = after; onChange?.(); }
+            }, { modalTitle: t(it.inputKey), cancelLabel: t("ui.textMenu.cancel"), saveLabel: t("ui.textMenu.apply"),
+              closeOnClear: true, onClose: () => abort.abort() });
+            return;
+          }
           const after = it.fn(before);
           if (after !== before) { area.value = after; if (onChange) onChange(); }
         }
       } catch { /* 单项异常不影响菜单 */ }
-      closeMenu();
     });
     menu.append(el);
   }
@@ -326,12 +341,14 @@ function buildMenu(items, area, opts, x, y) {
   menu.style.left = nx + "px";
   menu.style.top = ny + "px";
 
-  if (_springOn()) { HLSpring.set(menu, { scale: 0.92, opacity: 0 }); HLSpring.to(menu, { scale: 1, opacity: 1 }, "dur150"); }
+  enterSurface(menu, 4);
   openMenu = menu;
   document.addEventListener("pointerdown", onDocDown, true);
   document.addEventListener("keydown", onKeyDown, true);
   window.addEventListener("blur", closeMenu);
   window.addEventListener("resize", closeMenu);
+  window.addEventListener("hashchange", closeMenu);
+  window.addEventListener("ebctf:workspace-clear", closeMenu);
 }
 
 // 无损项（只读框也给）：复制选区/全部、全选。

@@ -1,4 +1,4 @@
-import { attachModalLifecycle } from "./modalLifecycle.js";
+import { attachModalLifecycle, closeModalSurface } from "./modalLifecycle.js";
 import { ensureExpStyles } from "./expandableInput.js";
 import { icon as iconSvg } from "./icons.js";
 import { downloadBytes } from "./download.js";
@@ -387,9 +387,7 @@ export function openStegSolveView(source, opts = {}) {
     if (state.closed) return;
     state.closed = true;
     stopPlay();
-    if (lifecycle) { lifecycle.release(); lifecycle = null; }
-    overlay.classList.add("exp-closing");
-    setTimeout(() => overlay.remove(), 250);
+    closeModalSurface(overlay);
   }
   closeBtn.addEventListener("click", close);
 

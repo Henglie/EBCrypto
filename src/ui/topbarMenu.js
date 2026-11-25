@@ -1,3 +1,4 @@
+import { enterSurface, exitSurface } from './expressiveMotion.js';
 // Compact, non-modal action disclosure. The existing buttons keep their handlers.
 export function initTopbarMenu() {
   const toggle = document.getElementById("btnMoreActions");
@@ -8,7 +9,8 @@ export function initTopbarMenu() {
   const close = (restoreFocus = false) => {
     if (!opened) return;
     opened = false;
-    actions.classList.remove("actions-open");
+    if (media.matches) exitSurface(actions, () => actions.classList.remove("actions-open"));
+    else { actions.classList.remove("actions-open"); enterSurface(actions, 0); }
     toggle.setAttribute("aria-expanded", "false");
     if (restoreFocus && media.matches) toggle.focus({ preventScroll: true });
   };
@@ -16,6 +18,7 @@ export function initTopbarMenu() {
     if (opened) { close(true); return; }
     opened = true;
     actions.classList.add("actions-open");
+    enterSurface(actions, -4);
     toggle.setAttribute("aria-expanded", "true");
     actions.querySelector("button, a[href]")?.focus({ preventScroll: true });
   });
@@ -41,6 +44,9 @@ export function initTopbarMenu() {
   media.addEventListener("change", () => {
     const focused = document.activeElement;
     close();
+    // Crossing a breakpoint cancels the old hidden-state completion.
+    actions.classList.remove('actions-open');
+    enterSurface(actions, 0);
     if (media.matches && actions.contains(focused)) toggle.focus({ preventScroll: true });
     else if (!media.matches && focused === toggle) actions.querySelector("button, a[href]")?.focus();
   });

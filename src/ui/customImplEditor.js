@@ -21,9 +21,8 @@ import {
 } from "../core/customImplStore.js";
 import { probeSandbox } from "../core/customImplClient.js";
 import { icon as iconSvg } from "./icons.js";
-import { attachModalLifecycle } from "./modalLifecycle.js";
+import { attachModalLifecycle, closeModalSurface } from "./modalLifecycle.js";
 import { codeInputExtensions } from './customCodeInput.js';
-import { enterSurface } from './expressiveMotion.js';
 
 // ---- CM6 bundle（单文件 ESM，已真浏览器验证） ----
 // ⚠ 性能审计 H2：821KB bundle 曾是顶层静态 import，随 main.js 进首屏关键路径——
@@ -624,7 +623,7 @@ export async function openCustomImplEditor(opId, ctx = {}) {
       el('h3', {}, t('ui.custom.editorTitle')), message, progress);
     let cancelled = false, lifecycle, ticket;
     const dispose = () => { lifecycle?.release(); loadingMask.remove(); if (_pendingEditors.get(opId) === ticket) _pendingEditors.delete(opId); };
-    const cancel = () => { cancelled = true; dispose(); };
+    const cancel = () => { cancelled = true; closeModalSurface(loadingMask, dispose); };
     const cancelButton = el('button', { class: 'btn', type: 'button', onclick: cancel }, t('ui.custom.cancelLoading'));
     card.append(cancelButton); loadingMask.append(card); document.body.append(loadingMask);
     lifecycle = attachModalLifecycle(loadingMask, { dialog: card, onClose: cancel, restoreFocusTo: previousFocus });
@@ -1327,17 +1326,16 @@ export async function openCustomImplEditor(opId, ctx = {}) {
     document.removeEventListener('pointerdown', onAssistOutside, true);
     document.removeEventListener('keydown', onAssistKey, true);
     window.removeEventListener('resize', placeAssist);
-    lifecycle?.release(); lifecycle = null;
     try { ro.disconnect(); } catch { /* ignore */ }
     try { themeMo.disconnect(); } catch { /* ignore */ }
-    if (view) { try { view.destroy(); } catch { /* ignore */ } }
-    view = null;
-    // 右侧只读源码实例同样必须销毁（CM6 view 持有 DOM 监听；不销毁则反复开关编辑器累积泄漏）
-    if (srcView) { try { srcView.destroy(); } catch { /* ignore */ } srcView = null; fileText = ""; _sourceLoaded = false; }
-    _sourcePromise = null;
-    _modCache.clear();
-    mask.remove();
     _editors.delete(opId);
+    closeModalSurface(mask, () => {
+      if (view) { try { view.destroy(); } catch { /* ignore */ } }
+      view = null;
+      if (srcView) { try { srcView.destroy(); } catch { /* ignore */ } srcView = null; }
+      fileText = ""; _sourceLoaded = false; _sourcePromise = null; _modCache.clear();
+      mask.remove();
+    });
   }
 
   // ---- 测试运行 ----
@@ -1619,7 +1617,6 @@ export async function openCustomImplEditor(opId, ctx = {}) {
   });
   lifecycle = attachModalLifecycle(mask, { dialog, onClose: close, closeOnEscape: false,
     initialFocus: ".ci-editor-wrap .cm-content", restoreFocusTo: previousFocus });
-  enterSurface(dialog);
   _editors.set(opId, { mask, close, focus: () => view?.focus() });
 }
 

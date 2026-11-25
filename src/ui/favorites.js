@@ -1,5 +1,6 @@
 import { t } from "../i18n/index.js";
 import { icon } from "./icons.js";
+import { enterSurface, exitSurface } from './expressiveMotion.js';
 
 const STORAGE_KEY = "ebctf_favorites";
 const MAX_FAVORITES = 200;
@@ -59,12 +60,16 @@ export function openFavMenu(x, y, { opId, entries, onChange } = {}) {
   // Layout dimensions are unaffected by the menu's opening transform.
   menu.style.left = Math.max(4, Math.min(x, innerWidth - menu.offsetWidth - 4)) + "px";
   menu.style.top = Math.max(4, Math.min(y, innerHeight - menu.offsetHeight - 4)) + "px";
+  enterSurface(menu, 4);
   const events = new AbortController();
   let timer;
+  let closed = false;
   closeMenu = () => {
+    if (closed) return;
+    closed = true;
     clearTimeout(timer);
     events.abort();
-    menu.remove();
+    exitSurface(menu, () => menu.remove());
     if (previousFocus?.isConnected) previousFocus.focus();
   };
   menu.addEventListener("keydown", event => {
@@ -86,5 +91,6 @@ export function openFavMenu(x, y, { opId, entries, onChange } = {}) {
       if (!menu.contains(event.target)) closeMenu();
     }, { signal: events.signal });
     window.addEventListener("blur", closeMenu, { signal: events.signal });
+    window.addEventListener('hashchange', closeMenu, { signal: events.signal });
   }, 0);
 }

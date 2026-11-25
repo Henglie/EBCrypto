@@ -16,6 +16,7 @@
 import {
   tNv, categoriesWithOps, opNameOf, opDescOf, searchOps, acceptsWire, portTypeLabel, PORT_TYPE,
 } from "../core.js";
+import { setDisclosure } from '../../ui/expressiveMotion.js';
 
 const FILTERABLE = new Set([PORT_TYPE.TEXT, PORT_TYPE.BYTES]);
 
@@ -173,7 +174,12 @@ export function createLibrary({ onAdd, portFilter = null, query = "" } = {}) {
         toggle.addEventListener("click", () => {
           if (state.collapsed.has(cat.id)) state.collapsed.delete(cat.id);
           else state.collapsed.add(cat.id);
-          render();
+          const expanded = !state.collapsed.has(cat.id);
+          toggle.setAttribute('aria-expanded', String(expanded));
+          toggle.title = tNv(expanded ? 'nv.lib.collapse' : 'nv.lib.expand');
+          setDisclosure(list, expanded);
+          state.active = -1;
+          refreshActive();
         });
         for (const op of ops) list.append(itemButton(op));
         sec.append(toggle, list);
@@ -192,7 +198,7 @@ export function createLibrary({ onAdd, portFilter = null, query = "" } = {}) {
   }
 
   function domButtons() {
-    return Array.from(body.querySelectorAll('[data-nv="lib-item"]'));
+    return Array.from(body.querySelectorAll('[data-nv="lib-item"]')).filter(button => !button.closest('[hidden], [inert]'));
   }
 
   function refreshActive() {

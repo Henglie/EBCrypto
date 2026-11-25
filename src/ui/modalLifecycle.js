@@ -10,6 +10,8 @@
 // 3. 释放顺序：先撤监听 → 再撤 inert → 最后归还焦点，保证归还目标此刻已可聚焦；
 // 4. 无外部依赖，零网络请求。
 
+import { enterSurface, exitSurface } from './expressiveMotion.js';
+
 // 可聚焦元素选择器（不含 disabled / tabindex=-1 / 隐藏类型）。
 const FOCUSABLE_SELECTOR = [
   "a[href]",
@@ -44,6 +46,20 @@ function focusableIn(container) {
 // 「只有最上层弹层响应」，避免叠加弹层时多个实例同时抢键。
 const STACK = [];
 const ACTIVE = new Map(); // root → { close, release }，供路由切换统一收尾
+const DIALOGS = new WeakMap();
+const CLOSING = new WeakSet();
+const INERT_OWNERS = new WeakMap();
+
+/** Paired scrim/panel exit. Dispose resources and restore focus after both finish. */
+export function closeModalSurface(root, complete = () => root.remove()) {
+  if (CLOSING.has(root)) return;
+  CLOSING.add(root);
+  const dialog = DIALOGS.get(root) || root;
+  let remaining = dialog === root ? 1 : 2;
+  const finish = () => { if (--remaining === 0) { ACTIVE.get(root)?.release(); complete(); } };
+  exitSurface(root, finish, 0);
+  if (dialog !== root) exitSurface(dialog, finish);
+}
 function isTopmost(root) {
   return STACK.length > 0 && STACK[STACK.length - 1] === root;
 }
@@ -112,6 +128,9 @@ export function attachModalLifecycle(root, opts = {}) {
 
   const doc = root.ownerDocument || document;
   const dialog = o.dialog || root.querySelector("[role='dialog'],[role='alertdialog']") || root;
+  DIALOGS.set(root, dialog);
+  enterSurface(root, 0);
+  if (dialog !== root) enterSurface(dialog);
   const restoreTarget = o.restoreFocus
     ? (o.restoreFocusTo || doc.activeElement || null)
     : null;
@@ -124,7 +143,9 @@ export function attachModalLifecycle(root, opts = {}) {
   if (o.inertBackground && doc.body) {
     for (const child of Array.from(doc.body.children)) {
       if (child === root || child.contains(root)) continue;
-      if (child.hasAttribute("inert")) continue;
+      const ownership = INERT_OWNERS.get(child) || { count: 0, original: child.hasAttribute('inert') };
+      ownership.count++;
+      INERT_OWNERS.set(child, ownership);
       child.setAttribute("inert", "");
       inerted.push(child);
     }
@@ -204,15 +225,22 @@ export function attachModalLifecycle(root, opts = {}) {
   function release() {
     if (released) return;
     released = true;
+    const returnFocus = isTopmost(root);
     doc.removeEventListener("keydown", onKeydown, true);
     const at = STACK.lastIndexOf(root);
     if (at > -1) STACK.splice(at, 1);
     ACTIVE.delete(root);
     if (o.closeOnBackdrop !== "none") root.removeEventListener("mousedown", onBackdrop);
-    for (const el of inerted) el.removeAttribute("inert");
+    for (const el of inerted) {
+      const ownership = INERT_OWNERS.get(el);
+      if (ownership && --ownership.count === 0) {
+        if (!ownership.original) el.removeAttribute('inert');
+        INERT_OWNERS.delete(el);
+      }
+    }
     inerted.length = 0;
     if (observer) { observer.disconnect(); observer = null; }
-    if (restoreTarget && restoreTarget.isConnected) focusNode(restoreTarget);
+    if (returnFocus && restoreTarget?.isConnected && !restoreTarget.closest('[inert]')) focusNode(restoreTarget);
   }
 
   // ---- 兜底：节点被摘除（组件自身 setTimeout 移除、路由切换等）时自动释放 ----

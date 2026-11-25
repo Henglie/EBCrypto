@@ -49,7 +49,7 @@ import { disposeSpecialWorkbenches } from "./ui/specialWorkbench.js";
 import { attachFieldTools } from "./ui/fieldTools.js";
 import { createOpFeedback } from "./ui/opFeedback.js";
 import { setupContinuousCorners } from "./ui/continuousCorners.js";
-import { initExpressiveMotion, finishExpressiveMotion } from "./ui/expressiveMotion.js";
+import { initExpressiveMotion, finishExpressiveMotion, enterSurface, exitSurface } from "./ui/expressiveMotion.js";
 import { initOpLayout } from "./ui/layoutPreferences.js";
 import { attachFamilyOverflow } from "./ui/familyOverflow.js";
 import { createWorkspaceDrafts, newDraftIdentity } from "./ui/workspaceDrafts.js";
@@ -185,7 +185,7 @@ import { refreshMobileDrawerLabels } from "./ui/mobileDrawer.js"; // ≤860px �
 import { synonymsOf, expandAliases } from "./ui/searchSynonyms.js"; // 图像/视频/编码等同义词检索（只改检索，不改 op 名）
 import { exhaustiveDecode } from "./core/exhaustiveDecode.js"; // 穷举全解并入首页智能解码（末尾追加可折叠区）
 import { expandableInput, ensureExpStyles, openExpandModal } from "./ui/expandableInput.js";
-import { attachModalLifecycle, releaseAllModals } from "./ui/modalLifecycle.js"; // 密钥/IV/crib 可展开输入框 + 弹层样式注入
+import { attachModalLifecycle, releaseAllModals, closeModalSurface } from "./ui/modalLifecycle.js"; // 密钥/IV/crib 可展开输入框 + 弹层样式注入
 import { decompileBytes, formatResult as formatDecompileResult } from "./core/exebridge.js"; // 拖入分派用
 // 以下模块已注册 op 且有 detect 的须排在下方 detectExt3/detectSupplement 之前，避免 detect 覆盖顺序错乱。
 import "./core/detectExt3.js"; // EASY 30 op detect 补齐（须在所有 op 注册后）
@@ -1490,12 +1490,10 @@ function openBatchDialog(dt, opts) {
     // CSV runner 随窗口释放：dispose 会取消在途批次并终止其 Worker，不残留后台任务。
     try { csvRunner?.dispose(); } catch { /* 已释放 */ }
     csvRunner = null;
-    overlay.classList.add("exp-closing");
-    if (life) life.release();
-    setTimeout(() => {
+    closeModalSurface(overlay, () => {
       overlay.remove();
       if (_batchOverlay === overlay) _batchOverlay = null;
-    }, 250);
+    });
   }
   life = attachModalLifecycle(overlay, { dialog, onClose: close, initialFocus: ".bp-drop", restoreFocusTo: previousFocus });
   closeBtn.addEventListener("click", close);
@@ -3178,16 +3176,14 @@ function openSectionView(title, act) {
   function close() {
     if (closed) return;
     closed = true;
-    if (lifecycle) { lifecycle.release(); lifecycle = null; }
-    overlay.classList.add("exp-closing");
-    setTimeout(() => {
+    closeModalSurface(overlay, () => {
       overlay.remove();
       if (objectUrl) {
         try { URL.revokeObjectURL(objectUrl); } catch { /* 已释放忽略 */ }
         _transientPreviewUrls.delete(objectUrl);
         objectUrl = null;
       }
-    }, 250);
+    });
   }
   let lifecycle = attachModalLifecycle(overlay, { dialog, onClose: close, restoreFocusTo: previousFocus });
 }
@@ -3492,15 +3488,13 @@ function openImageLightbox(url, alt, opts = {}) {
   function close() {
     if (closed) return;
     closed = true;
-    if (lifecycle) { lifecycle.release(); lifecycle = null; }
-    overlay.classList.add("img-lightbox-closing");
-    setTimeout(() => {
+    closeModalSurface(overlay, () => {
       overlay.remove();
       if (ownUrl) {
         try { URL.revokeObjectURL(ownUrl); } catch { /* 已释放忽略 */ }
         ownUrl = null;
       }
-    }, 250);
+    });
   }
   let lifecycle = attachModalLifecycle(overlay, { dialog: overlay, onClose: close, closeOnBackdrop: "always", initialFocus: closeBtn, restoreFocusTo: previousFocus });
 }
@@ -4034,11 +4028,11 @@ function renderOp() {
   const ioMode = inferIoMode(op);
   let showInput = ioMode !== "none" || ciSelfOn || hasFields || !!op.acceptsBytes;
   const noInputNote = el("div", { class: "io-none-hint op-no-input-note" }, msym("info"), t("ui.workbench.noInput"));
-  // 无主输入的算法没有输入窗格，批处理入口随窗格一起隐藏；这里单独留一个入口。
-  const noInputBatch = el("button", {
+  const paramBatch = el("button", {
     class: "chip-btn batch-open", type: "button", title: t("ui.workbench.batch"),
     onclick: () => openBatchDialog(null, { op: currentBatchOp(), params: { ...state.params } }),
   }, msym("layers"), el("span", {}, t("ui.workbench.batch")));
+  paramBar.append(el("div", { class: "op-param-actions" }, paramBatch));
   // Whitespace programs require literal spaces, tabs and line feeds, not rich-text DOM.
   const inArea = op.verbatimInput
     ? el("textarea", { class: "io-area", placeholder: t("ui.op.inPlaceholder"), spellcheck: "false" })
@@ -4229,10 +4223,6 @@ function renderOp() {
   };
 
   const extraInputTools = el("div", { class: "io-tools-extra" }, fontDec, fontInc,
-    el("button", {
-      class: "tool-btn batch-open", type: "button", title: t("ui.workbench.batch"), "aria-label": t("ui.workbench.batch"),
-      onclick: () => openBatchDialog(null, { op: currentBatchOp(), params: { ...state.params } }),
-    }, msym("layers")),
     hasFields ? null : toolBtn("select_all", t("ui.op.selectAll"), () => selectAllIO(inArea)),
     hasFields ? null : toolBtn("download", t("ui.op.export"), () => exportTextAsFile(inArea.value)),
   );
@@ -4322,8 +4312,14 @@ function renderOp() {
     }
     workbench.dataset.inputMode = showInput ? (hasFields ? "fields" : "text") : "none";
     io.querySelector('.io-pane-input').hidden = !showInput;
-    if (showInput) { noInputNote.remove(); noInputBatch.remove(); } else head.append(noInputNote, noInputBatch);
-    chainAct.disabled = !showInput || hasFields;
+    if (showInput) {
+      noInputNote.remove();
+      io.querySelector('.io-actions').append(chainAct);
+    } else {
+      config.append(noInputNote);
+      chainAct.remove();
+    }
+    chainAct.disabled = hasFields;
     for (const button of io.querySelectorAll(".io-pane:first-child .io-pane-tools button")) button.disabled = !showInput;
     inputCodingMount.hidden = !showInput || hasFields;
     if (!inputCodingMount.hidden && !inArea.__ioCoding) attachIoCodingToolbar(inArea, {
@@ -5283,7 +5279,7 @@ async function convert(src) {
 // （懒加载语言 await 拉字典 → onLocaleChange 全量重渲染）。点菜单外/再点按钮关闭。
 let _langMenu = null;
 function closeLangMenu() {
-  if (_langMenu) { _langMenu.remove(); _langMenu = null; }
+  if (_langMenu) { const closing = _langMenu; _langMenu = null; exitSurface(closing, () => closing.remove()); }
   document.removeEventListener("click", onLangOutside, true);
 }
 function onLangOutside(e) {
@@ -5323,6 +5319,7 @@ function toggleLangMenu(anchor) {
   menu.style.left = Math.max(4, left) + "px";
   menu.style.visibility = "";
   _langMenu = menu;
+  enterSurface(menu, -4);
   setTimeout(() => document.addEventListener("click", onLangOutside, true), 0);
 }
 
@@ -5599,8 +5596,15 @@ function initTopbar() {
 
 // ---- 字库面板（顶栏「字库」下拉）----
 let _fontPanel = null;
+function closeFontPanel() {
+  if (!_fontPanel) return;
+  const closing = _fontPanel; _fontPanel = null;
+  closing._off?.();
+  closing._dismiss?.();
+  exitSurface(closing, () => closing.remove());
+}
 function toggleFontPanel(anchor) {
-  if (_fontPanel) { _fontPanel.remove(); _fontPanel = null; return; }
+  if (_fontPanel) { closeFontPanel(); return; }
   const panel = el("div", { class: "font-panel" });
   const rerender = () => {
     panel.innerHTML = "";
@@ -5638,15 +5642,16 @@ function toggleFontPanel(anchor) {
   const r = anchor.getBoundingClientRect();
   panel.style.top = (r.bottom + 6) + "px";
   panel.style.right = (window.innerWidth - r.right) + "px";
+  enterSurface(panel, -4);
+  const key = event => { if (event.key === 'Escape') { event.preventDefault(); closeFontPanel(); anchor.focus({ preventScroll: true }); } };
+  panel.addEventListener('keydown', key);
  // 点面板外关闭
   setTimeout(() => {
+    if (_fontPanel !== panel) return;
     const onDoc = (ev) => {
-      if (_fontPanel && !_fontPanel.contains(ev.target)) {
-        _fontPanel._off && _fontPanel._off();
-        _fontPanel.remove(); _fontPanel = null;
-        document.removeEventListener("click", onDoc);
-      }
+      if (_fontPanel === panel && !ev.composedPath().includes(panel) && !anchor.contains(ev.target)) closeFontPanel();
     };
+    panel._dismiss = () => document.removeEventListener('click', onDoc);
     document.addEventListener("click", onDoc);
   }, 0);
 }
@@ -6046,17 +6051,13 @@ function openAboutLangModal() {
   dialog.append(head, list);
   overlay.append(dialog);
   document.body.append(overlay);
-  const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); close(); } };
   const onHash = () => close();
   close = () => {
-    document.removeEventListener("keydown", onKey);
     window.removeEventListener("hashchange", onHash);
-    overlay.remove();
-    try { previousFocus && previousFocus.focus && previousFocus.focus(); } catch { /* ignore */ }
+    closeModalSurface(overlay);
   };
-  document.addEventListener("keydown", onKey);
   window.addEventListener("hashchange", onHash);
-  overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+  attachModalLifecycle(overlay, { dialog, onClose: close, initialFocus: closeBtn, restoreFocusTo: previousFocus });
   localeCoverage().then((rows) => {
     if (!overlay.isConnected) return;
     const sorted = [...rows].sort((a, b) => {

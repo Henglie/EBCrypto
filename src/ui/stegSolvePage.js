@@ -12,7 +12,7 @@ import { icon as iconSvg } from "./icons.js";
 import { downloadBytes } from "./download.js";
 import { createSpecialWorkbench } from "./specialWorkbench.js";
 import { connectSpecialDraft, newDraftIdentity } from "./workspaceDrafts.js";
-import { attachModalLifecycle } from "./modalLifecycle.js";
+import { attachModalLifecycle, closeModalSurface } from "./modalLifecycle.js";
 import { buildZip } from "../core/batchRun.js";
 import { isLimitError } from "../core/limitGuard.js";
 import {
@@ -754,8 +754,7 @@ export function renderStegSolvePage(host, op) {
     const current = gallery;
     gallery = null;
     if (!current) return;
-    try { current.lifecycle?.release(); } catch { /* ignore */ }
-    try { current.overlay.remove(); } catch { /* ignore */ }
+    closeModalSurface(current.overlay);
   }
 
   function openFrameChannelGallery() {

@@ -12,6 +12,7 @@
  */
 import * as registry from "../core/registry.js";
 import { icon } from "../ui/icons.js";
+import { enterSurface } from '../ui/expressiveMotion.js';
 
 import {
   configureRegistry,
@@ -126,6 +127,7 @@ export async function mountNodeView(host, { lang, graph, signal } = {}) {
     if (!op) { inspHost.appendChild(el("div", { class: "nv-insp-empty", text: tNv("nv.insp.empty") || "无参数" })); return; }
     inspector = createInspector(op, { values: node.params || {} });
     inspHost.appendChild(inspector.el);
+    enterSurface(inspHost, 0);
   }
 
   function renderOutput() {
@@ -184,6 +186,7 @@ export async function mountNodeView(host, { lang, graph, signal } = {}) {
     root.remove();
   }
 
+  enterSurface(root, 0, { duration: 150 });
   return { root, destroy, getGraph: () => canvas.getGraph(), setGraph: (g) => canvas.setGraph(g), run, api };
 }
 

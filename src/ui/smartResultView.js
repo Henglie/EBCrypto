@@ -1,6 +1,7 @@
 import { computeSignals, SIGNAL_LIMITS } from "../core/magic/signals.js";
 import { ensureExpStyles } from "./expandableInput.js";
-import { attachModalLifecycle } from "./modalLifecycle.js";
+import { attachModalLifecycle, closeModalSurface } from "./modalLifecycle.js";
+import { enterSurface, exitSurface } from './expressiveMotion.js';
 import { icon as iconSvg } from "./icons.js";
 import { getLocale } from "../i18n/index.js";
 import { createRegexEngine, DEFAULT_LIMITS } from "./targetRegexEngine.js";
@@ -458,7 +459,7 @@ html:not(.reduce-motion) .exp-overlay.exp-closing.mt575-anim .exp-dialog { anima
 
   /* ---- 右键菜单（编辑/删除/启停） ---- */
   let menu = null;
-  const closeMenu = () => { if (menu) { menu.remove(); menu = null; } };
+  const closeMenu = () => { if (menu) { const old = menu; menu = null; exitSurface(old, () => old.remove()); } };
  // 不再直接挂 document（改经 _wireMenuChannel 单例多路复用，见文件头说明）
   _wireMenuChannel();
   const _reg = { root, closeMenu, seen: false };
@@ -482,6 +483,7 @@ html:not(.reduce-motion) .exp-overlay.exp-closing.mt575-anim .exp-dialog { anima
     const r = menu.getBoundingClientRect();
     menu.style.left = Math.min(e.clientX, innerWidth - r.width - 8) + "px";
     menu.style.top = Math.min(e.clientY, innerHeight - r.height - 8) + "px";
+    enterSurface(menu, 4);
     menu.addEventListener("contextmenu", (ev) => ev.preventDefault());
     menu.addEventListener("click", (ev) => ev.stopPropagation());
   }
@@ -631,9 +633,8 @@ html:not(.reduce-motion) .exp-overlay.exp-closing.mt575-anim .exp-dialog { anima
   function closeList() {
     if (!listDialog) return;
     const ov = listDialog; listDialog = null;
-    if (listModal) { listModal.release(); listModal = null; }
-    ov.classList.add("exp-closing");
-    setTimeout(() => ov.remove(), 250);
+    listModal = null;
+    closeModalSurface(ov);
   }
   expBtn.addEventListener("click", () => {
     if (listDialog) { closeList(); return; }

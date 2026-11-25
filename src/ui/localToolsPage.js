@@ -1,6 +1,7 @@
 import { LOCAL_TOOL_CATALOG, LOCAL_TOOLS_SCHEMA, LOCAL_TOOL_MIRRORS } from '../core/localToolCatalog.js';
 import { bridgeHealth } from '../core/localBridge.js';
 import { icon as iconSvg } from './icons.js';
+import { attachModalLifecycle, closeModalSurface } from './modalLifecycle.js';
 
 export const LOCAL_TOOLS_TEXT = {
   title: ['本机环境工具管理', 'Local environment tools'],
@@ -80,21 +81,15 @@ function confirmSheet({ title, message, confirmLabel, cancelLabel, danger = true
     const accept = button(confirmLabel, () => close(true), { class: `lt-confirm-accept${danger ? ' danger' : ''}` });
     const dialog = el('div', { class: 'lt-confirm-card', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'lt-confirm-title' },
       el('h2', { id: 'lt-confirm-title' }, title), el('p', {}, message), el('div', { class: 'lt-confirm-actions' }, cancel, accept));
-    const onKey = event => {
-      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(false); }
-      if (event.key === 'Tab') {
-        event.preventDefault(); (document.activeElement === cancel ? accept : cancel).focus({ preventScroll: true });
-      }
-    };
+    let closed = false;
     const close = value => {
-      document.removeEventListener('keydown', onKey, true);
-      overlay.remove(); resolve(value);
-      if (previous && previous.isConnected) previous.focus({ preventScroll: true });
+      if (closed) return;
+      closed = true;
+      closeModalSurface(overlay);
+      resolve(value);
     };
-    overlay.addEventListener('click', event => { if (event.target === overlay) close(false); });
-    document.addEventListener('keydown', onKey, true);
     overlay.append(dialog); document.body.append(overlay);
-    cancel.focus({ preventScroll: true });
+    attachModalLifecycle(overlay, { dialog, onClose: () => close(false), initialFocus: cancel, restoreFocusTo: previous });
   });
 }
 

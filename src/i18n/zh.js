@@ -11,6 +11,12 @@
  * 所以增量补全即可，不必一次填满。
  */
 export default {
+  "ui.textMenu.removeChars": "删除任意字符…",
+  "ui.textMenu.spaceChars": "替换指定字符为空格…",
+  "ui.textMenu.removePrompt": "输入要删除的字符（可多个）",
+  "ui.textMenu.spacePrompt": "输入要替换为空格的字符（可多个）",
+  "ui.textMenu.cancel": "取消",
+  "ui.textMenu.apply": "应用",
   "ui.allops.collapseAll": "全部收起",
   "ui.allops.expandAll": "全部展开",
   "ui.ci.zoomIn": "放大",

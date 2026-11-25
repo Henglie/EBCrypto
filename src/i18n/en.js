@@ -5,6 +5,12 @@
  * Keep keys in sync with zh.js.
  */
 export default {
+  "ui.textMenu.removeChars": "Remove characters…",
+  "ui.textMenu.spaceChars": "Replace characters with spaces…",
+  "ui.textMenu.removePrompt": "Characters to remove (one or more)",
+  "ui.textMenu.spacePrompt": "Characters to replace with spaces (one or more)",
+  "ui.textMenu.cancel": "Cancel",
+  "ui.textMenu.apply": "Apply",
   "ui.allops.collapseAll": "Collapse all",
   "ui.allops.expandAll": "Expand all",
   "ui.ci.zoomIn": "Zoom in",

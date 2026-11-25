@@ -18,6 +18,8 @@ import { createIoEditorFrame } from './ioEditorFrame.js';
 import { ioArea } from "./ioArea.js"; // 天珩连字：输入/输出改 contenteditable div（textarea 吞 OpenType 特性）
 import { createSpecialWorkbench } from "./specialWorkbench.js";
 import { expandableInput, openExpandModal } from "./expandableInput.js";
+import { enterSurface, exitSurface } from './expressiveMotion.js';
+import { attachModalLifecycle, closeModalSurface } from './modalLifecycle.js';
 import { decodeUtf8Lossless } from "../core/bytesIo.js";
 import {
   listSavedRecipes, saveNamedRecipe, saveDraft, loadDraft, serializeRecipe,
@@ -1156,10 +1158,12 @@ function buildOpSearchPicker(onPick) {
   };
 
   const renderList = (ops) => {
+    const wasOpen = list.classList.contains('open') && !list.inert;
     list.innerHTML = "";
     if (!ops.length) {
       list.append(el("div", { class: "recipe-op-search-empty" }, tt("ui.recipe.addEmpty")));
       list.classList.add("open");
+      if (!wasOpen) enterSurface(list, 4);
       return;
     }
     ops.forEach((op, i) => {
@@ -1171,8 +1175,12 @@ function buildOpSearchPicker(onPick) {
       list.append(item);
     });
     list.classList.add("open");
+    if (!wasOpen) enterSurface(list, 4);
   };
-  const closeList = () => { list.classList.remove("open"); list.innerHTML = ""; };
+  const closeList = () => {
+    if (!list.classList.contains('open') || list.inert) return;
+    exitSurface(list, () => { list.classList.remove('open'); list.innerHTML = ''; });
+  };
   const pick = (opId) => {
     input.value = "";
     closeList();
@@ -1965,17 +1973,11 @@ function openRecipeImagePreview(url, bytes, mime, name) {
     const closeBtn = el("button", { type: "button", class: "img-lightbox-close", title: tt("ui.expand.cancel"), "aria-label": tt("ui.expand.cancel") }, msym("close"));
     overlay.append(img, closeBtn);
     const close = () => {
-      overlay.classList.add("img-lightbox-closing");
-      setTimeout(() => overlay.remove(), 250);
-      document.removeEventListener("keydown", onKey);
+      closeModalSurface(overlay);
     };
-    const onKey = (event) => { if (event.key === "Escape") close(); };
-    overlay.addEventListener("click", (event) => {
-      if (event.target === overlay || event.target.closest(".img-lightbox-close")) close();
-    });
-    document.addEventListener("keydown", onKey);
+    closeBtn.addEventListener('click', close);
     document.body.append(overlay);
-    closeBtn.focus();
+    attachModalLifecycle(overlay, { dialog: overlay, onClose: close, initialFocus: closeBtn });
   });
 }
 function updateRunUi() {
@@ -2314,7 +2316,7 @@ function ensureRecipeStyle() {
 
 let _helpOverlay = null;
 function closeRecipeHelp() {
-  if (_helpOverlay) { _helpOverlay.remove(); _helpOverlay = null; }
+  if (_helpOverlay) { const closing = _helpOverlay; _helpOverlay = null; closeModalSurface(closing); }
 }
 function showRecipeHelp() {
   closeRecipeHelp();
@@ -2325,9 +2327,9 @@ function showRecipeHelp() {
     el("button", { class: "recipe-clear-btn", style: "margin-top:12px", onclick: closeRecipeHelp }, tt("ui.recipe.close") || "关闭"),
   );
   overlay.append(card);
-  overlay.addEventListener("pointerdown", (e) => { if (e.target === overlay) closeRecipeHelp(); });
   document.body.append(overlay);
   _helpOverlay = overlay;
+  attachModalLifecycle(overlay, { dialog: card, onClose: closeRecipeHelp, initialFocus: card.querySelector('button') });
 }
 
 const TEXT_EDIT_SELECTOR = ".io-area, input, textarea, select, [contenteditable='true'], .cm-editor, .cm-content";
