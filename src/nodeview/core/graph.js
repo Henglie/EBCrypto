@@ -34,6 +34,7 @@ import {
   outputPortOf,
   canConnect,
 } from "./ports.js";
+import { findSensitiveValues as findSensitiveValuesCore } from "../../core/secretPolicy.js";
 import { allowedDirectionsOf, defaultDirectionOf, resolveOp } from "./runtime.js";
 
 export const GRAPH_SCHEMA_VERSION = 1;
@@ -773,35 +774,15 @@ export function bytesToHex(bytes) {
  * @returns {Array<{nodeId:string, opId:string, paramKey:string, path:string, promoted:boolean}>}
  */
 export function findSensitiveValues(graph, opts = {}) {
-  const hits = [];
   const nodes = Array.isArray(graph && graph.nodes) ? graph.nodes : [];
-  const promoted = new Set();
-  for (const e of (graph && graph.edges) || []) {
-    if (e && e.to && typeof e.to.port === "string" && e.to.port.startsWith("param:")) {
-      promoted.add(`${e.to.node}\u0000${e.to.port.slice(6)}`);
-    }
+  const sensitiveKeysByOp = {};
+  for (const n of nodes) {
+    const opId = String(n?.opId || "");
+    if (!opId || Object.prototype.hasOwnProperty.call(sensitiveKeysByOp, opId)) continue;
+    const op = resolveOp(opId, opts.registry);
+    sensitiveKeysByOp[opId] = (op?.params || []).filter(d => d && d.sensitive === true).map(d => d.key);
   }
-  nodes.forEach((n, i) => {
-    const op = resolveOp(n.opId, opts.registry);
-    if (!op) return;
-    for (const d of op.params || []) {
-      if (!d || d.sensitive !== true) continue;
-      const has = isPlainObject(n.params) && Object.prototype.hasOwnProperty.call(n.params, d.key);
-      const val = has ? n.params[d.key] : undefined;
-      const hasValue = has && val !== "" && val != null;
-      const isPromoted = promoted.has(`${n.id}\u0000${d.key}`);
-      if (!hasValue && !isPromoted) continue;
-      hits.push({
-        nodeId: n.id,
-        opId: n.opId,
-        paramKey: d.key,
-        path: `nodes[${i}].params.${d.key}`,
-        promoted: isPromoted,
-        hasValue,
-      });
-    }
-  });
-  return hits;
+  return findSensitiveValuesCore(graph, { sensitiveKeysByOp });
 }
 
 /**

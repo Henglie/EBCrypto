@@ -438,7 +438,7 @@ export default {
   "ui.qc.udec": "Decimal (sin signo)",
   "ui.qc.bin": "Binario",
   "ui.qc.bitmap": "Vista de bits (haz clic en una celda para invertir ese bit)",
-  "ui.qc.bitmapWide": "El ancho supera los 64 bits, así que la vista de bits está oculta (demasiadas celdas).",
+  "ui.qc.bitmapWide": "El ancho supera los 256 bits, así que la vista de bits está oculta (demasiadas celdas).",
   "ui.qc.expr": "Expresión",
   "ui.qc.exprPlaceholder": "p. ej. 0x401000 + 0x1234, 1 << 31, rotl(0x80000000, 1)",
   "ui.qc.eval": "Evaluar",

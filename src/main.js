@@ -1,3 +1,4 @@
+import { isResultSecretOp, sanitizeReport } from "./core/secretPolicy.js";
 import { literalMatcher, groupSingleCandidates } from "./core/magic/smartCandidates.js";
 import { createTargetEditor, renderCandidateRow, highlightResult } from "./ui/smartResultView.js";
 import { classifyResult } from "./core/resultTypes.js";
@@ -76,7 +77,7 @@ import { runOpOffThread, cancelOpRun, opRunBusy } from "./core/opRunClient.js"; 
 import { setLimitMessageBuilder, withLimitContext } from "./core/limitGuard.js";
 import { openDecodeStrength } from "./ui/decodeStrength.js"; // 「解码强度」弹窗（5 档滑块 + 参与算法多选 + 命名方案）
 import { applyAccent, enableHctEngine, DEFAULT_ACCENT, resetAccent } from "./ui/dynamicColor.js"; // M3 动态取色（HSL 近似 + HCT 精确引擎）
-import { themeVariant } from "./ui/themePicker.js";
+import { themeVariant, applyThemeVariant } from "./ui/themePicker.js";
 import { attachEditorToolbar } from "./ui/editorToolbar.js"; // 通用编辑框工具条（记事本化，全站复用）
 import { createIoEditorFrame } from './ui/ioEditorFrame.js';
 import { attachIoCodingToolbar } from "./ui/ioCodingToolbar.js"; // 全局 I/O 编码 + 文本/字节双模
@@ -380,7 +381,7 @@ function buildOpReport(op) {
   const catName = (CATEGORIES.find((c) => c.id === op.cat) || {}).name || op.cat;
   const dirLabel = op.run && !(op.encode || op.decode) ? "run" : (state.dir === "encode" ? "encode" : "decode");
   const ts = new Date().toISOString();
-  const json = {
+  const rawReport = {
     app: "EBCTF CodeBox",
     version: APP_VERSION,
     generatedAt: ts,
@@ -389,6 +390,12 @@ function buildOpReport(op) {
     input: { length: input.length, text: input },
     output: { length: output.length, status: failed ? "error" : "ok", text: output },
   };
+  // 报告是显式下载，但仍按冻结策略剔除敏感键与结果段落，不因「用户主动导出」而自动落盘秘密。
+  const json = sanitizeReport(rawReport, {
+    opId: op.id,
+    sensitiveKeys: (op.params || []).filter(d => d && d.sensitive === true).map(d => d.key),
+    secretValues: (op.params || []).filter(d => d && d.sensitive === true).map(d => state.params[d.key]).filter(Boolean),
+  }).value;
   const fence = (s) => {
     // 围栏长度按内容里最长的连续反引号 +1，避免内容自带 ``` 破坏 Markdown
     const longest = (s.match(/`+/g) || []).reduce((m, r) => Math.max(m, r.length), 0);
@@ -1298,6 +1305,8 @@ function renderWorkspace() {
       if (state.view === view && state.opId === opId) direction = state.dir;
       return {
         params: view === "op" ? params : undefined, dir: direction,
+        sensitiveKeys: view === "op" ? (getOp(opId)?.params || []).filter(d => d && d.sensitive === true).map(d => d.key) : [],
+        resultSecret: view === "op" && isResultSecretOp(opId, getOp(opId)),
         lastMemo: view === "op" && _lastOpOutput?.opId === opId ? _lastOpOutput : undefined,
         recipeFile: view === "recipe" ? recipeState.file : undefined,
         inspect: view === "inspect" ? _inspectLoaded?.getUniversalViewerDraft() : undefined,
@@ -5352,6 +5361,7 @@ function applyThemePref(pref, persist, skipAccent) {
   document.documentElement.setAttribute("data-theme", actual);
   if (themeVariant(pref)) document.documentElement.setAttribute("data-palette", pref);
   else document.documentElement.removeAttribute("data-palette");
+  applyThemeVariant(document.documentElement, themeVariant(pref));
   const iconNode = document.querySelector("#btnTheme .msym");
   if (iconNode) iconNode.innerHTML = iconSvg(actual === "dark" ? "dark_mode" : "light_mode");
   if (persist) { try { localStorage.setItem(THEME_KEY, pref); } catch { /* 忽略 */ } }

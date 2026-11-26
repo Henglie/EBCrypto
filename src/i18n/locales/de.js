@@ -623,7 +623,7 @@ export default {
   "ui.qc.bytesBE": "Bytes (Big-Endian)",
   "ui.qc.bytesLE": "Bytes (Little-Endian)",
   "ui.qc.bitmap": "Bit-Ansicht (Zelle anklicken, um das Bit zu kippen)",
-  "ui.qc.bitmapWide": "Wortbreite über 64 Bit – die Bit-Ansicht ist ausgeblendet (zu viele Zellen).",
+  "ui.qc.bitmapWide": "Wortbreite über 256 Bit – die Bit-Ansicht ist ausgeblendet (zu viele Zellen).",
   "ui.qc.expr": "Ausdruck",
   "ui.qc.exprPlaceholder": "z. B. 0x401000 + 0x1234, 1 << 31, rotl(0x80000000, 1)",
   "ui.qc.eval": "Auswerten",

@@ -8,7 +8,7 @@
  * - sm9Encrypt（encrypt）标识加密：加密主公钥 + uid + hid + 明文 → C1‖C3‖C2（GB/T 38635.4 口径）
  * - sm9Decrypt（decrypt）标识解密：用户加密私钥 + uid + 密文 → 明文（C3 校验失败报错）
  *
- * 双线性对内核在 pairing.js（BN 曲线 R-ate pairing，256 位安全）。协议流程逐行对照
+ * 双线性对内核在 pairing.js（BN 曲线 R-ate pairing，256 位素域；不表示256位安全强度）。协议流程逐行对照
  * github.com/emmansun/gmsm（MIT）internal/sm9/sm9.go / sm9_key.go / kat.go：
  * - 用户密钥：t1 = H1(uid‖hid)+d (mod n)；t2 = d·t1⁻¹；签名私钥 [t2]G1，加密私钥 [t2]G2；
  *   用户公钥 = [H1(uid‖hid)]G + Ppub（签名在 G2、加密在 G1）
@@ -83,21 +83,28 @@ function uidHid(uid, hid) {
 // 密钥体系（GB/T 38635.2-2020 第 6-7 章；对照 gmsm sm9_key.go）
 // ============================================================
 // 签名主公钥 Ppub_s = [ks]G2（G2 点，仿射）
+function assertSm9Scalar(value, label) {
+  if (typeof value !== "bigint" || value < 1n || value >= N) throw new Error(`SM9：${label}须在 [1, n-1]`);
+}
 export function sm9SignMasterPub(ks) {
+  assertSm9Scalar(ks, "签名主私钥 ks");
   return g2MulAff(ks, G2_GEN);
 }
 // 加密主公钥 Ppub_e = [ke]G1（G1 点，仿射）
 export function sm9EncryptMasterPub(ke) {
+  assertSm9Scalar(ke, "加密主私钥 ke");
   return g1MulAff(ke, G1_GEN);
 }
 // 签名用户私钥 dA = [t2]G1；t2 = ks·(H1(uid‖hid)+ks)⁻¹ mod n
 export function sm9UserSignKey(ks, uid, hid) {
+  assertSm9Scalar(ks, "签名主私钥 ks");
   const t1 = modN(sm9H1(uidHid(uid, hid)) + ks);
   if (t1 === 0n) throw new Error("SM9：H1(uid‖hid)+ks ≡ 0 (mod n)，需更换签名主密钥");
   return g1MulAff(modN(ks * modInvN(t1)), G1_GEN);
 }
 // 加密用户私钥 dB = [t2]G2；t2 同上（ke 代替 ks）
 export function sm9UserEncryptKey(ke, uid, hid) {
+  assertSm9Scalar(ke, "加密主私钥 ke");
   const t1 = modN(sm9H1(uidHid(uid, hid)) + ke);
   if (t1 === 0n) throw new Error("SM9：H1(uid‖hid)+ke ≡ 0 (mod n)，需更换加密主密钥");
   return g2MulAff(modN(ke * modInvN(t1)), G2_GEN);
@@ -117,10 +124,11 @@ export function sm9UserEncryptPub(uid, hid, masterPubG1) {
 // msg：明文字节；masterPubG2：签名主公钥（G2 仿射）；userPrivG1：用户签名私钥（G1 仿射）；
 // fixedR：BigInt|null（固定 r 用于 KAT 复现，null 则随机）
 export function sm9Sign(msg, masterPubG2, userPrivG1, fixedR) {
+  if (fixedR != null) assertSm9Scalar(fixedR, "随机数 r");
   const g = pairing([G1_GEN[0], G1_GEN[1]], masterPubG2); // g = e(G1, Ppub_s)
   let rr, h, S;
   for (let attempt = 0; ; attempt++) {
-    rr = fixedR == null ? sm9RandomScalar() : modN(fixedR);
+    rr = fixedR == null ? sm9RandomScalar() : fixedR;
     if (rr === 0n) throw new Error("SM9：随机数 r 须在 [1, n-1]");
     const w = gtExp(g, rr);
     h = sm9H2(concatBytes(msg, gtMarshal(w)));
@@ -149,10 +157,11 @@ export function sm9Verify(msg, uid, hid, masterPubG2, h, S) {
 // 返回 { key, cipher }：cipher 为 C1 的 65B 非压缩（04‖x‖y）
 export function sm9WrapKey(uid, hid, masterPubG1, klen, fixedR) {
   if (!Number.isSafeInteger(klen) || klen <= 0) throw new Error("SM9：封装密钥长度需为正整数（字节）");
+  if (fixedR != null) assertSm9Scalar(fixedR, "随机数 r");
   const q = sm9UserEncryptPub(uid, hid, masterPubG1);
   let rr, c, key;
   for (let attempt = 0; ; attempt++) {
-    rr = fixedR == null ? sm9RandomScalar() : modN(fixedR);
+    rr = fixedR == null ? sm9RandomScalar() : fixedR;
     if (rr === 0n) throw new Error("SM9：随机数 r 须在 [1, n-1]");
     c = g1MulAff(rr, q); // C1 = [r]QB
     const g = pairing(masterPubG1, [G2_GEN[0], G2_GEN[1]]); // g = e(Ppub_e, G2)
@@ -182,10 +191,11 @@ export function sm9UnwrapKey(uid, cipher, userPrivG2, klen) {
 // 输出 C1‖C3‖C2：C1 = 64B 裸 x‖y（GB/T 38635.4 口径）；C3 = SM3(C2‖K2)；C2 = M⊕K1
 export function sm9Encrypt(msg, uid, hid, masterPubG1, fixedR) {
   if (!msg || msg.length === 0) throw new Error("SM9：明文不能为空");
+  if (fixedR != null) assertSm9Scalar(fixedR, "随机数 r");
   const q = sm9UserEncryptPub(uid, hid, masterPubG1);
   let rr, c1, k;
   for (let attempt = 0; ; attempt++) {
-    rr = fixedR == null ? sm9RandomScalar() : modN(fixedR);
+    rr = fixedR == null ? sm9RandomScalar() : fixedR;
     if (rr === 0n) throw new Error("SM9：随机数 r 须在 [1, n-1]");
     c1 = g1MulAff(rr, q); // C1 = [r]QB
     const g = pairing(masterPubG1, [G2_GEN[0], G2_GEN[1]]);
@@ -243,6 +253,8 @@ function kexKey(isResponder, uid, peerUID, secret, peerSecret, g1, g2, g3, keyLe
 // 一次跑完整交换流（固定 rA/rB，纯函数）：A 发起、B 响应，双向 sig 校验 + 双方导出密钥
 // 返回 { rAData, rBData, sigB, sigA, keyA, keyB }
 export function sm9KeyExchange(uidA, uidB, hid, masterPubG1, privA, privB, rA, rB, keyLen) {
+  assertSm9Scalar(rA, "发起方随机数 rA");
+  assertSm9Scalar(rB, "响应方随机数 rB");
   // A1-A4：rAData = [rA]QB
   const pubB = sm9UserEncryptPub(uidB, hid, masterPubG1);
   const rAData = g1MarshalUncompressed(g1MulAff(rA, pubB));

@@ -22,6 +22,7 @@
 import { register } from "./registry.js";
 import { sha256Bytes } from "./baseExt.js";
 import { keccak256 } from "./hash.js";
+import { POINT_CURVE_CATALOG } from "./curveCatalog.js";
 
 // ============================================================
 // 通用字节 / 编码工具
@@ -85,8 +86,7 @@ const OID_NAMES = {
   "1.3.132.0.34": "secp384r1 (P-384)",
   "1.3.132.0.35": "secp521r1 (P-521)",
   "1.3.132.0.10": "secp256k1",
-  "1.3.132.0.31": "secp192r1 (P-192)",
-  "1.3.132.0.33": "secp224r1 (P-224)",
+  ...Object.fromEntries(POINT_CURVE_CATALOG.map((c) => [c.oid, c.name])),
  // X.509 / CSR 属性
   "2.5.4.3": "commonName (CN)",
   "2.5.4.6": "countryName (C)",
@@ -594,20 +594,13 @@ const EC_CURVES = {
     h: "1",
     note: "NIST P-521，FIPS 186-4",
   },
-  "1.3.132.0.31": {
-    names: ["secp192r1", "P-192"],
-    oid: "1.3.132.0.31",
-    field: "Fp",
-    bits: 192,
-    h: "1",
-  },
-  "1.3.132.0.33": {
-    names: ["secp224r1", "P-224"],
-    oid: "1.3.132.0.33",
-    field: "Fp",
-    bits: 224,
-    h: "1",
-  },
+  ...Object.fromEntries(POINT_CURVE_CATALOG.map((c) => {
+    const hex = (value) => value.toString(16).toUpperCase().padStart(Math.ceil(c.bits / 8) * 2, "0");
+    return [c.oid, {
+      names: c.aliases, oid: c.oid, field: "Fp", bits: c.bits, h: String(c.h),
+      p: hex(c.p), a: hex(c.a), b: hex(c.b), n: hex(c.n), Gx: hex(c.Gx), Gy: hex(c.Gy), note: c.std,
+    }];
+  })),
   "1.3.101.112": {
     names: ["Ed25519"],
     oid: "1.3.101.112",
@@ -639,7 +632,7 @@ const EC_CURVES = {
 };
 
 // 名称 → OID 反查
-const CURVE_NAME_TO_OID = {};
+const CURVE_NAME_TO_OID = Object.create(null);
 for (const oid of Object.keys(EC_CURVES)) {
   for (const nm of EC_CURVES[oid].names) CURVE_NAME_TO_OID[nm.toLowerCase()] = oid;
 }

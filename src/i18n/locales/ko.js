@@ -534,7 +534,7 @@ export default {
   "ui.qc.bytesBE": "바이트(빅 엔디언)",
   "ui.qc.bytesLE": "바이트(리틀 엔디언)",
   "ui.qc.bitmap": "비트 보기(칸을 클릭하면 해당 비트가 반전)",
-  "ui.qc.bitmapWide": "워드 폭이 64비트를 넘어 비트 보기를 숨겼습니다(칸이 너무 많아 읽기 어렵습니다).",
+  "ui.qc.bitmapWide": "워드 폭이 256비트를 넘어 비트 보기를 숨겼습니다(칸이 너무 많아 읽기 어렵습니다).",
   "ui.qc.expr": "수식",
   "ui.qc.exprPlaceholder": "예: 0x401000 + 0x1234, 1 << 31, rotl(0x80000000, 1)",
   "ui.qc.eval": "계산",

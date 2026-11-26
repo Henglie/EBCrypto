@@ -497,7 +497,11 @@ function completionDecode(text) {
 function splitHex(text, p) {
   const s = text.trim().replace(/\s+/g, "");
   if (!s) return "（空输入）";
-  const sizes = (p && p.sizes) || [2, 4, 8];
+  // 兼容档：默认仍给 2/4/8 三栏；选 3 位时对应 V8 base_convert/completion.py::long_to_3
+  // （长数字串三三位分割，常用于八进制）。
+  let sizes = (p && p.sizes) || [2, 4, 8];
+  if (p && p.size === "3") sizes = [3];
+  else if (p && p.size && p.size !== "default") sizes = [Number(p.size)].filter((n) => Number.isInteger(n) && n > 0);
   const lines = sizes.map((sz) => {
     const parts = [];
     for (let i = 0; i < s.length; i += sz) parts.push(s.slice(i, i + sz));
@@ -1020,9 +1024,17 @@ register({
 
 register({
   id: "splitHex", cat: "radix", name: "Hex N 位分割",
-  desc: "长 hex 串按 2/4/8 位分割",
-  params: [],
-  run: (t) => splitHex(t, { sizes: [2, 4, 8] }),
+  desc: "长数字串按 N 位分割：默认一次给 2/4/8 三栏；可选 3 位档（V8 base_convert/completion.py 的「字符串三三位分割8进制」，long_to_3）",
+  params: [
+    { key: "size", label: "分割位宽", type: "select", default: "default", options: [
+      { value: "default", label: "2/4/8 三栏（默认）" },
+      { value: "3", label: "3 位（三三位分割 / 8 进制）" },
+      { value: "2", label: "2 位" },
+      { value: "4", label: "4 位" },
+      { value: "8", label: "8 位" },
+    ] },
+  ],
+  run: (t, p) => splitHex(t, p),
 });
 
 register({

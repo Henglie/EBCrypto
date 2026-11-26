@@ -446,7 +446,7 @@ export default {
   "ui.qc.bytesBE": "בתים (big-endian)",
   "ui.qc.bytesLE": "בתים (little-endian)",
   "ui.qc.bitmap": "תצוגת סיביות (לחץ על תא כדי להפוך את הסיבית)",
-  "ui.qc.bitmapWide": "רוחב המילה עולה על 64 סיביות, ולכן תצוגת הסיביות מוסתרת (יותר מדי תאים).",
+  "ui.qc.bitmapWide": "רוחב המילה עולה על 256 סיביות, ולכן תצוגת הסיביות מוסתרת (יותר מדי תאים).",
   "ui.qc.expr": "ביטוי",
   "ui.qc.exprPlaceholder": "לדוגמה 0x401000 + 0x1234, 1 << 31, rotl(0x80000000, 1)",
   "ui.qc.eval": "חשב",

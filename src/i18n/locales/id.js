@@ -445,7 +445,7 @@ export default {
   "ui.qc.bytesBE": "Bita (big-endian)",
   "ui.qc.bytesLE": "Bita (little-endian)",
   "ui.qc.bitmap": "Tampilan bit (klik sel untuk membalik bit itu)",
-  "ui.qc.bitmapWide": "Lebar melebihi 64 bit, tampilan bit disembunyikan (selnya terlalu banyak).",
+  "ui.qc.bitmapWide": "Lebar melebihi 256 bit, tampilan bit disembunyikan (selnya terlalu banyak).",
   "ui.qc.expr": "Ekspresi",
   "ui.qc.exprPlaceholder": "mis. 0x401000 + 0x1234, 1 << 31, rotl(0x80000000, 1)",
   "ui.qc.eval": "Hitung",

@@ -80,6 +80,7 @@ function el(tag, attrs, ...kids) {
   return node;
 }
 
+import { sanitizeCsvColumns } from '../core/secretPolicy.js';
 const optionValue = (o) => (typeof o === 'string' ? o : (o && typeof o === 'object' && typeof o.value === 'string' ? o.value : null));
 
 /** 参数定义 → CSV 列定义：只映射冻结类型，不做猜测。样例行必须能原样通过预检。 */
@@ -119,7 +120,9 @@ export function schemaForOp(op) {
     if (!f || typeof f.key !== 'string') continue;
     columns.push({ key: 'field.' + f.key, type: 'text', note: f.label || '结构化输入' });
   }
-  return { columns };
+  // 模板不引导用户填写敏感参数：声明 sensitive 与最小清单列一并剔除。
+  const safe = sanitizeCsvColumns(op.id, columns, (op.params || []).filter(d => d && d.sensitive === true).map(d => d.key));
+  return { columns: safe.value };
 }
 
 /** 已选 File → 相对路径键：目录选择去掉所选目录名，单独选文件用文件名。不合法则返回 null。 */

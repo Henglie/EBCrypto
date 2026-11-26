@@ -26,6 +26,8 @@
  * { key, label, type: 'text'|'number'|'select'|'bool', default, options?, placeholder? }
  */
 
+import { getCryptoTraits } from "./cryptoTraits.js";
+
 // ---- 分类定义（左侧菜单分组，顺序即显示顺序） ----
 export const CATEGORIES = [
   { id: "home",    name: "首页 · 一把梭", icon: "bolt",           pinned: true },
@@ -39,7 +41,11 @@ export const CATEGORIES = [
   { id: "block",   name: "现代密码·分组",   icon: "grid_view" },
   { id: "stream",  name: "现代密码·流",     icon: "waves" },
   { id: "asym",    name: "现代密码·非对称", icon: "key" },
+  { id: "lattice", name: "现代密码·格密码", icon: "grid_view" },
+  { id: "postQuantum", name: "现代密码·后量子", icon: "vpn_key" },
+  { id: "quantumSim", name: "量子仿真",      icon: "auto_awesome" },
   { id: "modern",  name: "现代密码·其他",   icon: "lock" },
+  { id: "teaching", name: "教学编码",      icon: "history_edu" },
   { id: "hash",    name: "哈希 / 校验",    icon: "fingerprint" },
   { id: "radix",   name: "进制 / 字符集",  icon: "calculate" },
   { id: "analysis",name: "分析 / 爆破",    icon: "query_stats" },
@@ -130,7 +136,7 @@ export function seedStub(stub) {
   if (!_catIds.has(stub.cat)) {
     throw new Error(`stub ${stub.id} 的 cat "${stub.cat}" 不在 CATEGORIES 中`);
   }
-  const op = { __stub: true, ...stub, params: stub.params || [] };
+  const op = { __stub: true, ...stub, ...getCryptoTraits(stub.id), params: stub.params || [] };
   _byId.set(op.id, op);
   OPS.push(op);
   return op;
@@ -141,6 +147,7 @@ export function register(op) {
   if (!op || typeof op.id !== "string" || !op.id) {
     throw new Error(`op 必须有非空字符串 id`);
   }
+  Object.assign(op, getCryptoTraits(op.id));
  // 惰载 stub 升级：开机播种的 __stub 占位（仅元数据）被真实 op 原位替换。
  // 数组位置保持 stub 序（= registerAll 注册序），UI 列表序与 eager 态一致；
  // detect 四件套在 S1 求值期已对 stub 打过补丁，升级时合并保留，免除重放时序问题。
@@ -210,6 +217,7 @@ const LEGACY_OP_IDS = {
   braincopterEncode: "braincopter", braincopterDecode: "braincopter",
   jweEncrypt: "jweCipher", jweDecrypt: "jweCipher",
   ntruEncrypt: "ntru", ntruDecrypt: "ntru",
+  chinesecode: "scoutStick",
   hqcEncrypt: "hqc", hqcDecrypt: "hqc",
   ntruCca2Encrypt: "ntruCca2", ntruCca2Decrypt: "ntruCca2",
 };

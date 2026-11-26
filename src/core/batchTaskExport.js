@@ -7,6 +7,7 @@
  *   - 不做任何"只看存在性"的校验：CSV/JSON/产物都按真实结果逐项生成。
  *   - 原始文本与表格安全展示分开：默认原样保留以 = + - @ 开头的文本，另提供显式转义开关。
  */
+import { isResultSecretOp } from './secretPolicy.js';
 import { TASK_SCHEMA_VERSION } from './batchTaskContract.js';
 
 export const RESULT_CSV_COLUMNS = Object.freeze([
@@ -27,6 +28,8 @@ export function resultToRecord(result) {
   const files = Array.isArray(result.files) ? result.files : [];
   const names = [];
   for (let i = 0; i < files.length; i++) names.push(files[i] && typeof files[i].name === 'string' ? files[i].name : '');
+  const rawText = typeof result.text === 'string' ? result.text : '';
+  const text = isResultSecretOp(result.opId) ? '[已省略：密钥生成结果属于敏感材料]' : rawText;
   return {
     taskId: result.taskId ?? '',
     opId: result.opId ?? '',
@@ -34,8 +37,8 @@ export function resultToRecord(result) {
     status: result.status ?? 'error',
     errorCode: result.error && result.error.code ? result.error.code : '',
     errorMessage: result.error && result.error.message ? result.error.message : '',
-    text: typeof result.text === 'string' ? result.text : '',
-    textBytes: typeof result.text === 'string' ? encoder.encode(result.text).byteLength : 0,
+    text,
+    textBytes: encoder.encode(text).byteLength,
     fileCount: files.length,
     fileNames: names.join(' | '),
   };

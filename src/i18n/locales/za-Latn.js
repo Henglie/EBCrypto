@@ -399,7 +399,7 @@ export default {
   "ui.qc.bytesBE": "Zihcez (big-endian)",
   "ui.qc.bytesLE": "Zihcez (little-endian)",
   "ui.qc.bitmap": "Veiq yiengq (niek liux aeu fanz veiq de)",
-  "ui.qc.bitmapWide": "Cizgvanq gvaq 64 veiq, Veiq yiengq couh nip (lai liux mbouj doeg ndaej).",
+  "ui.qc.bitmapWide": "Cizgvanq gvaq 256 veiq, Veiq yiengq couh nip (lai liux mbouj doeg ndaej).",
   "ui.qc.expr": "Biaudazsik",
   "ui.qc.exprPlaceholder": "dwg 0x401000 + 0x1234, 1 << 31, rotl(0x80000000, 1)",
   "ui.qc.eval": "Gisuanq",

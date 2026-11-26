@@ -446,7 +446,7 @@ export default {
   "ui.qc.bytesBE": "بايتات (big-endian)",
   "ui.qc.bytesLE": "بايتات (little-endian)",
   "ui.qc.bitmap": "عرض البتات (انقر خانة لعكس تلك البتة)",
-  "ui.qc.bitmapWide": "عرض الكلمة يتجاوز 64 بت، لذا أُخفي عرض البتات (الخانات كثيرة جدًا لقراءتها).",
+  "ui.qc.bitmapWide": "عرض الكلمة يتجاوز 256 بت، لذا أُخفي عرض البتات (الخانات كثيرة جدًا لقراءتها).",
   "ui.qc.expr": "تعبير",
   "ui.qc.exprPlaceholder": "مثل 0x401000 + 0x1234، 1 << 31، rotl(0x80000000, 1)",
   "ui.qc.eval": "احسب",

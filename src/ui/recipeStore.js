@@ -4,6 +4,8 @@
  * 存储全部在本地 localStorage；分享链接只把配方+输入压进 hash，不发网络请求。
  * 压缩走 core/compress 的 deflate-raw（原生 Streams 不可用时自动退 stored deflate）。
  */
+import { sanitizeRecipeData } from "../core/secretPolicy.js";
+import { getOp } from "../core/registry.js";
 import { streamCompress, streamDecompress } from "../core/compress.js";
 
 const SAVED_KEY = "ebctf.recipe.saved.v1";
@@ -66,6 +68,8 @@ export function serializeRecipe(state, options = {}) {
       return node;
     }
     const node = { opId: n.opId, dir: n.dir, params: clonePlain(n.params || {}) };
+    const declared = (getOp(n.opId)?.params || []).filter(d => d && d.sensitive === true).map(d => d.key);
+    if (declared.length) node.sensitiveKeys = declared; // 无值元数据：供统一过滤层识别已声明敏感字段
     if (n.disabled) node.disabled = true;
     if (n.breakpoint) node.breakpoint = true;
     return node;
@@ -84,7 +88,8 @@ export function serializeRecipe(state, options = {}) {
     nodes,
   };
   if (!includeInput && sourceInput && !fileChannel) data.inputOmitted = true;
-  return data;
+  // 配方草稿 / 命名保存 / 分享码共用过滤层：敏感参数不落盘、不进链接。
+  return sanitizeRecipeData(data).value;
 }
 
 export function listSavedRecipes() {
@@ -143,6 +148,7 @@ export async function encodeShare(data, options = {}) {
   else delete payload.inputOmitted;
   let degraded = fileOmitted;
   if (includeInput && payload.input.length > SHARE_INPUT_LIMIT) { payload.input = ""; degraded = true; }
+  payload = sanitizeRecipeData(payload, { sensitiveKeysByOp: Object.fromEntries((payload.nodes || []).map(n => [n.opId || n.control || '', (getOp(n.opId)?.params || []).filter(d => d && d.sensitive === true).map(d => d.key)])) }).value; // 双保险：未过滤 data 也不泄露
   const pack = async (obj) => b64urlEncode(await streamCompress("deflate-raw", new TextEncoder().encode(JSON.stringify(obj))));
   let code = await pack(payload);
   if (code.length > SHARE_MAX_CODE && payload.input) { payload.input = ""; degraded = true; code = await pack(payload); }

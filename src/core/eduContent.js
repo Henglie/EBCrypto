@@ -192,6 +192,10 @@ import EDU_CN_LOOKUP from "./edu/edu-cn-lookup.js"; // v0.1.12 五种中文查�
 import EDU_P0_20261025 from "./edu/edu-p0-20261025.js"; // v0.1.12 P0：AEAD/PQC/ZIP + 进制小数
 import EDU_T690 from "./edu/edu-t690.js"; // v0.1.12：ECDH/RSA-OAEP/HPKE
 import EDU_T693 from "./edu/edu-t693.js"; // Mach-O/WASM
+import EDU_T1544 from "./edu/edu-t1544.js"; // T1544 中文/花式密码族 10 项
+import EDU_T1545 from "./edu/edu-t1545.js"; // T1545 进制流与文本隐写 4 项
+import EDU_T1546 from "./edu/edu-t1546.js"; // T1546 Base/编码变体 3 项
+import EDU_T1547 from "./edu/edu-t1547.js"; // T1547 图像/文件工具纯 JS 项 2 项
 import EDU_T694 from "./edu/edu-t694.js"; // UTF-32/GB18030
 import EDU_T703 from "./edu/edu-t703.js"; // SHA-224/cSHAKE
 import EDU_REGEX from "./edu/edu-regex.js"; // 通用正则提取/替换 regexTool
@@ -367,6 +371,10 @@ const EDU = Object.assign(
   EDU_P0_20261025,
   EDU_T690,
   EDU_T693,
+  EDU_T1544,
+  EDU_T1545,
+  EDU_T1546,
+  EDU_T1547,
   EDU_T694,
   EDU_T703,
   EDU_REGEX,

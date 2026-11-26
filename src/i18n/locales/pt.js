@@ -443,7 +443,7 @@ export default {
   "ui.qc.udec": "Decimal (sem sinal)",
   "ui.qc.bin": "Binário",
   "ui.qc.bitmap": "Visão de bits (clique numa célula para inverter esse bit)",
-  "ui.qc.bitmapWide": "A largura passa de 64 bits, então a visão de bits está oculta (células demais).",
+  "ui.qc.bitmapWide": "A largura passa de 256 bits, então a visão de bits está oculta (células demais).",
   "ui.qc.expr": "Expressão",
   "ui.qc.exprPlaceholder": "ex.: 0x401000 + 0x1234, 1 << 31, rotl(0x80000000, 1)",
   "ui.qc.eval": "Avaliar",

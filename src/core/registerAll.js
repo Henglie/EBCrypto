@@ -100,6 +100,15 @@ import "./utf32Codec.js"; // UTF-32 LE/BE（text, run）
 import "./gb18030.js"; // GB18030 严格版四字节（text, run）
 import "./machoParse.js"; // Mach-O/fat 结构解析（filefmt, run）
 import "./wasmParse.js"; // WASM 结构解析（filefmt, run）
+import "./fileHeaderRepair.js"; // 文件头检测与修复 fileHeaderRepair（filefmt, run, 双源判定+最小覆写+结构校验, acceptsBytes）
+import "./fileByteBridge.js"; // 文件↔字节桥接 fileByteBridge（filefmt, run, 9 模式合并 Bytes 字面量/进制流/Base64/hex 与文件互转, acceptsBytes）
+import "./fixedCodeCipher.js"; // 固定码表单表替换族 8 项（fancy, 双向, V8 pic_sbcipher 权威码表逐字导出）
+import "./chinaStroke.js"; // 汉字笔画码（cn, 双向, V8 china_stroke.py 3471 字笔画表）
+import "./suiyue.js"; // 随曰 AEAD（cn, 双向异步, V8 zbSuiyue PBKDF2+HKDF+AES-CTR+ChaCha20-Poly1305）
+import "./radixStringOps.js"; // 进制数值串异或族 radixStringXor/xorNumberAdd（V8 base_convert/xor_ops.py）
+import "./textStegoExtract.js"; // 文本隐写提取 cloakify/ttiDecode（V8 file_tools/text_stego.py）
+import "./encodingVariants.js"; // 编码变体 baguaCodec/zeroWidthLib/base85b（V8 bagua/zb_zero_width_lib/base85b）
+import "./imageMergeTool.js"; // 图像合并/Novel_In_Image imageMerge/novelInImage（V8 image_basic/image_data）
 import "./netcodec.js"; // 网络/协议编码组
 import "./timecodec.js"; // 时间戳/日期编码组
 import "./checkdigit.js"; // 条码/校验位组

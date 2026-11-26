@@ -448,7 +448,7 @@ export default {
   "ui.qc.bytesBE": "Baytlar (big-endian)",
   "ui.qc.bytesLE": "Baytlar (little-endian)",
   "ui.qc.bitmap": "Bit görünümü (bir hücreye tıklayarak o biti tersine çevirin)",
-  "ui.qc.bitmapWide": "Sözcük genişliği 64 biti aştığı için bit görünümü gizlendi (hücreler okunamayacak kadar çok).",
+  "ui.qc.bitmapWide": "Sözcük genişliği 256 biti aştığı için bit görünümü gizlendi (hücreler okunamayacak kadar çok).",
   "ui.qc.expr": "İfade",
   "ui.qc.exprPlaceholder": "örn. 0x401000 + 0x1234, 1 << 31, rotl(0x80000000, 1)",
   "ui.qc.eval": "Hesapla",

@@ -6,7 +6,7 @@
  *   ecdsaSign       签名：RFC 6979 确定 k / 随机 k，输出 r,s（十进制+hex）+ DER（crypto）
  *   ecdsaVerify     验签：公钥（压缩/非压缩/X‖Y 自动识别）+ 签名（r,s 或 DER）（crypto）
  *   ecdsaSigConvert 签名格式互转：raw(r;s) ↔ DER(ASN.1 X.690) ↔ JOSE(base64url)（crypto）
- *   eccCalc         ECC 点运算计算器：点加/点减/标量乘/倍点，四预设曲线 + 自定义（modern）
+ *   eccCalc         ECC 点运算计算器：点加/点减/标量乘/倍点，预设曲线 + 自定义
  *
  * 标准依据（北极星：实现可当权威源）：
  *   - ECDSA 签名/验签：ANSI X9.62 / FIPS 186-4 §6.3（点运算数学）
@@ -37,6 +37,8 @@ import { isProbablePrime, modPow } from "./primeGen.js";
 import { randomBytes as randBytes } from "./randSource.js"; // 统一随机源（默认档 system 逐字节零回归）
 import { md5Bytes, sha1Bytes } from "./hash.js";
 import { derSeq, derInt, derOctetString, derOid, derBitString, derEncode, derToPem } from "./rsagen.js";
+import { POINT_CURVE_CATALOG } from "./curveCatalog.js";
+import { Field } from "./lib/noble/abstract/modular.js";
 
 // ============================================================
 // 曲线域参数（BigInt 常量表）
@@ -96,6 +98,18 @@ const CURVE_OPTIONS = [
   { value: "p256", label: "P-256 / secp256r1（NIST）" },
   { value: "p384", label: "P-384 / secp384r1（NIST）" },
   { value: "p521", label: "P-521 / secp521r1（NIST）" },
+];
+const POINT_CURVE_BY_ID = new Map(POINT_CURVE_CATALOG.map((curve) => [curve.id, curve]));
+const SQRT_FIELDS = new Map(POINT_CURVE_CATALOG.filter((curve) => curve.p % 4n !== 3n)
+  .map((curve) => [curve, Field(curve.p)]));
+const POINT_CURVE_OPTIONS = [
+  ...CURVE_OPTIONS,
+  ...POINT_CURVE_CATALOG.map((curve) => ({
+    value: curve.id,
+    label: curve.legacy ? `${curve.name}（旧制兼容）` : curve.name,
+    ...(curve.legacy ? { labelKey: `op.eccCalc.curve.${curve.id}` } : {}),
+  })),
+  { value: "custom", label: "自定义 p/a/b/Gx/Gy/n", labelKey: "op.eccCalc.curve.custom" },
 ];
 
 const HASHES = {
@@ -490,14 +504,22 @@ function parsePoint(raw, c, label) {
   );
 }
 
-/** 压缩点解压：四条内置曲线均 p ≡ 3 (mod 4) → y = (x³+ax+b)^((p+1)/4)（SEC 1 v2 §2.3.4） */
+/** SEC 1 v2 §2.3.4：按压缩前缀恢复 y；非常规内置素域复用 noble 的模平方根。 */
 function decompressPoint(x, odd, c, label) {
   if (x >= c.p) throw new Error(`${label} 坐标超出域范围（≥p）`);
-  if (mod(c.p, 4n) !== 3n) throw new Error("压缩点解压需 p ≡ 3 (mod 4)（Tonelli-Shanks 未实现）");
   const y2 = mod(x * x * x + c.a * x + c.b, c.p);
-  let y = modPow(y2, (c.p + 1n) / 4n, c.p);
+  let y;
+  if (c.p % 4n === 3n) {
+    y = modPow(y2, (c.p + 1n) / 4n, c.p);
+  } else {
+    const field = SQRT_FIELDS.get(c);
+    if (!field) throw new Error("自定义曲线的压缩点解压需 p ≡ 3 (mod 4)，否则请使用非压缩点");
+    try { y = field.sqrt(y2); }
+    catch { throw new Error(`${label} 不在曲线上（x 无平方根 y）`); }
+  }
   if (mod(y * y, c.p) !== y2) throw new Error(`${label} 不在曲线上（x 无平方根 y）`);
   if ((y & 1n) !== BigInt(odd)) y = mod(c.p - y, c.p);
+  if ((y & 1n) !== BigInt(odd)) throw new Error(`${label} 压缩前缀与 y 奇偶性不匹配`);
   return [x, y];
 }
 
@@ -996,7 +1018,9 @@ function eccCalcRun(_text, p = {}) {
   if ((p.curve || "secp256k1") === "custom") {
     c = buildCustomCurve(p.p, p.a, p.b, p.Gx, p.Gy, p.n);
   } else {
-    c = getCurve(p.curve || "secp256k1");
+    const key = p.curve || "secp256k1";
+    c = POINT_CURVE_BY_ID.get(key) || (Object.hasOwn(CURVES, key) ? CURVES[key] : null);
+    if (!c) throw new Error(`未知曲线：${key}（请选择内置曲线或自定义）`);
   }
   const P = parsePoint(p.P, c, "点 P");
   const bl = byteLen(c.p);
@@ -1176,7 +1200,7 @@ register({
   id: "eccCalc",
   cat: "asym",
   name: "ECC 点运算",
-  desc: "椭圆曲线点运算计算器：点加/点减/标量乘/倍点。曲线四条预设（secp256k1/P-256/P-384/P-521）或自定义 p/a/b/Gx/Gy/n。点支持压缩 02/03‖X、非压缩 04‖X‖Y、裸 X‖Y、G（生成元）、O（无穷远点）；k 支持十进制/0x hex/负数。无穷远点输出 Infinity。",
+  desc: "素数域椭圆曲线点运算：点加、点减、标量乘和倍点。支持八条预设曲线及自定义域参数。P-192/P-224 供旧制兼容；预设只用于点运算。",
   params: [
     { key: "op", label: "运算", type: "select", default: "add", options: [
       { value: "add", label: "点加 P+Q" },
@@ -1184,7 +1208,7 @@ register({
       { value: "mul", label: "标量乘 k·P" },
       { value: "double", label: "倍点 2·P" },
     ] },
-    { key: "curve", label: "曲线", type: "select", default: "secp256k1", options: [...CURVE_OPTIONS, { value: "custom", label: "自定义 p/a/b/Gx/Gy/n" }] },
+    { key: "curve", label: "曲线", type: "select", default: "secp256k1", options: POINT_CURVE_OPTIONS },
     { key: "P", label: "点 P", type: "text", default: "G", placeholder: "04‖X‖Y / 02|03‖X / X‖Y / G / O" },
     { key: "Q", label: "点 Q（点加/点减用）", type: "text", default: "G", placeholder: "同上格式" },
     { key: "k", label: "标量 k（标量乘用）", type: "text", default: "2", placeholder: "十进制或 0x hex，可负" },

@@ -133,6 +133,8 @@ function _hmacSha256(key, msg) {
 
 /** RFC 5869 HKDF-Expand（纯 JS 同步）。 */
 function _hkdfExpand(prk, info, len) {
+  // RFC 5869 §2.3: L <= 255 * HashLen; SHA-256 HashLen = 32 bytes.
+  if (!Number.isSafeInteger(len) || len < 0 || len > 8160) throw new Error("HKDF-SHA-256 单次派生长度需为 0..8160 字节（RFC 5869 §2.3）");
   const out = new Uint8Array(len);
   let t = new Uint8Array(0);
   let pos = 0, ctr = 1;

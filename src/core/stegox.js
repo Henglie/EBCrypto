@@ -1,4 +1,5 @@
 import { register } from "./registry.js";
+import { randomBytes } from "./randSource.js";
 
 /**
  * StegoX 兼容容器（与 https://eb.xbdqwq.com/apps/stegox/ 互通）
@@ -88,8 +89,9 @@ export async function stegoxEmbed({ carrier, keySource, text = "", files = [] })
   const carrierBytes = toU8(carrier);
   const { packed, totalLen } = buildPacked(text, files);
 
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv = crypto.getRandomValues(new Uint8Array(12));
+  // 容器格式不变：salt 16B、IV 12B；仅把字节来源切到统一随机源，默认档仍为系统熵直通。
+  const salt = randomBytes(16);
+  const iv = randomBytes(12);
   const key = await deriveKey(keySource, salt);
   const enc = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, packed));
 

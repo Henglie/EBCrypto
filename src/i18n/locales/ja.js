@@ -534,7 +534,7 @@ export default {
   "ui.qc.bytesBE": "バイト列（ビッグエンディアン）",
   "ui.qc.bytesLE": "バイト列（リトルエンディアン）",
   "ui.qc.bitmap": "ビットビュー（マスをクリックでそのビットを反転）",
-  "ui.qc.bitmapWide": "ワード幅が 64 ビットを超えるため、ビットビューは非表示です（マスが多すぎて読めません）。",
+  "ui.qc.bitmapWide": "ワード幅が 256 ビットを超えるため、ビットビューは非表示です（マスが多すぎて読めません）。",
   "ui.qc.expr": "式",
   "ui.qc.exprPlaceholder": "例：0x401000 + 0x1234、1 << 31、rotl(0x80000000, 1)",
   "ui.qc.eval": "計算",

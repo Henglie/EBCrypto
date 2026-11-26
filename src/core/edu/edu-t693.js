@@ -74,4 +74,54 @@ export default {
       "universal binary 解析", "machoParse", "Mach-O header", "mach-o load commands",
       "Mach-O segment", "macho 文件", "macOS 可执行文件", "iOS 二进制分析", "mach-o 格式", "MachO 结构"],
   },
+  fileHeaderRepair: {
+    what: "文件头检测与修复：按「扩展名 + 内容嗅探」双源判定文件真实格式，识别「缺了前 k 字节签名」与「头部若干字节被改坏」两种损伤，只覆写确实坏掉的字节，修完再做结构校验并另存产物。",
+    principle:
+      "**判定**：每种格式登记「固定签名段」（偏移 + 期望字节，如 PNG 的 8 字节签名、RIFF 容器偏移 0 的 `RIFF` 与偏移 8 的 `WAVE/AVI /WEBP`）。逐段比对得到差异字节数；另用前缀对齐判断「只是从头缺了 k 字节」——即 `data[0..len-k] == sig[k:]`（k 至少保留 2~4 字节证据，避免随机数据被误认）。\n\n" +
+      "**评分**：完全匹配 > 缺头（k 越小越可信）> 坏字节（差异数绝对 ≤8 且不超过签名长度一半）。短签名必须靠「最小结构长度」兜底，否则 2 字节的 BMP 签名会在随机数据上压过 8 字节的 PNG。\n\n" +
+      "**修复**：缺头 → 前置补 `sig[:k]`；坏字节 → 只改那几处偏移，其余字节原样保留（不做整段重写）。\n\n" +
+      "**结构校验**：PNG 查 IHDR 位置 + 块 CRC + IEND；ZIP 在末尾 64KB 找 EOCD 并核对注释长度；RIFF 核对长度字段与实际差值；BMP 核对声明长度；JPEG/GIF/PDF 查结束标记（FFD9 / 0x3B / %%EOF）。校验不通过会明说「损坏不止文件头」。",
+    usage: "拖入文件即可（也可在输入区粘十六进制）。模式选「仅检测」只看判定不产物；选「检测并修复」会在原目录生成 `<原名>.repaired<扩展名>`，原件不动。格式默认自动嗅探，扩展名与内容冲突时以内容为准并报警；小于 16 字节、超过处理上限或坏字节超限都只报不修。",
+    examples: [
+      { in: "PNG 被删掉前 2 字节", param: "检测并修复", out: "补齐 2 字节签名 → 产物 +2 字节，IHDR CRC / IEND 校验通过", desc: "缺头补齐" },
+      { in: "PNG 签名里 3 个字节被改坏", param: "检测并修复", out: "只覆写那 3 个字节，长度不变，签名恢复", desc: "最小改动" },
+      { in: "正常 WAV（RIFF…WAVE）", param: "仅检测", out: "签名完全匹配 + RIFF 长度自洽，不生成产物", desc: "不误改好文件" },
+      { in: "ZIP 尾部被截掉 5 字节", param: "检测并修复", out: "头部完好但「未找到 EOCD」，只报告不产物", desc: "能区分「头坏」与「身断」" },
+    ],
+    tips: [
+      "它只修文件头，不重建数据：结构校验不过说明文件被截断或中间缺块，补头也救不回来。",
+      "扩展名是线索不是结论——`fake.png` 里装着 GIF，会按 GIF 判定并提示冲突，绝不按扩展名硬改。",
+      "「缺头」和「坏头」处理方式不同：缺头是插入，坏头是覆写；报告里会写清补了几字节 / 改了哪几个偏移。",
+      "ZIP 家族（docx/xlsx/pptx/apk/jar）共用 `PK\x03\x04`；空归档是 `PK\x05\x06`，也认。",
+      "RIFF 容器（wav/avi/webp）的偏移 8 才是格式标识，只认偏移 0 的 `RIFF` 会把正常文件判错。",
+      "小于 16 字节不修，是为了避免把残余数据截成「一段标准头」——这类文件更适合直接看十六进制。",
+    ],
+    aka: ["文件头修复", "文件头检测", "修复文件头", "file header repair", "magic 修复", "魔数修复",
+      "文件类型识别", "文件头校验", "PNG 头修复", "JPEG 头修复", "ZIP 头修复", "损坏文件修复", "fileHeaderRepair"],
+  },
+  fileByteBridge: {
+    what: "把磁盘文件与字节/编码串互相转换的一站式入口：Python bytes 字面量（b'\\xNN'）↔文本、文件→Bytes 字面量、文件→文本、文件→2/8/16 进制流、文件→Base64、Base64→文件、Hex→文件、Hex→.hex 文件，共 9 种模式合并为一个入口。",
+    principle:
+      "**Bytes 字面量**：文本按 UTF-8 编码成字节，再按 Python `repr(bytes)` 口径输出——可打印 ASCII 原样保留，`\\n`/`\\r`/`\\t` 用转义，其余写 `\\xNN`；反向解析支持 `\\xNN`、八进制、`\\uNNNN` 与引号外壳。中文会变成连续的 `\\xe4\\xbd\\xa0…`，这是 UTF-8 字节，不是乱码。\n\n" +
+      "**文件→文本**：UTF-8 → GBK → Latin-1 依次尝试，全部显式报出尝试过程；**不按固定宽度硬切行**，保留原换行（这是「读取为文本」，不是十六进制查看器）。\n\n" +
+      "**进制流**：每字节固定 8 位二进制 / 2 位十六进制 / 八进制不补零——定宽是可逆的关键。\n\n" +
+      "**Base64 / Hex → 文件**：Base64 会先剥 data URI 前缀、去空白；Hex 会清洗 `0x`、逗号、引号等分隔符；两者都可手动指定扩展名，留空时按前几个字节的魔数猜（PNG/ZIP/JPEG/GIF/BMP/PDF/ELF/PE…）。前导零字节用逐字节解析保留，不做 `long_to_bytes(int(hex))` 那种吞零转换。",
+    usage: "拖入文件后选模式即可；文本类模式也可直接粘贴。`文件→文本` 用编码下拉切换 UTF-8/GBK/Latin-1 优先级；产物类模式（文件→Base64、Base64→文件、Hex→文件、Hex→.hex）会给出下载按钮，产物不写用户磁盘，原名保留、扩展名可改。",
+    examples: [
+      { in: "你好", param: "文本 → Bytes 字面量", out: "b'\\xe4\\xbd\\xa0\\xe5\\xa5\\xbd'", desc: "中文 UTF-8 字节" },
+      { in: "b'\\xe4\\xbd\\xa0\\xe5\\xa5\\xbd'", param: "Bytes 字面量 → 文本", out: "你好", desc: "往返还原" },
+      { in: "拖入任意文件", param: "文件 → 2/8/16 进制流", out: "三节定宽流，每字节 8bit / 2hex / 八进制", desc: "定宽可逆" },
+      { in: "data:image/png;base64,iVBORw0KGgo…", param: "Base64 → 文件", out: "decoded.png（按魔数识别）", desc: "data URI 也可" },
+    ],
+    tips: [
+      "Python 的 `str(bytes)` 会把可打印 ASCII 留成字符、其余转义成 `\\xNN`；`\\x00` 这种前导零必须保留，否则字节序列就变了。",
+      "「读取为文本」与「Hex Viewer」是两件事：前者不硬切行、可直接复制长行；后者才按 16 字节一行排版。",
+      "Latin-1 兜底保证任何字节都能解出字符（不会丢字节），但它不是正确的中文编码——中文优先 UTF-8/GBK。",
+      "Base64/Hex 转文件时若魔数识别失败，会退到 .bin；手动填扩展名最稳妥。",
+      "产物走浏览器下载通道，不会悄悄写到你的硬盘目录——和直接写磁盘的工具行为不同。",
+      "这一族合并了 9 个同类入口：bytes_to_str / str_to_bytes / file_to_bytes / file_to_txt / file_to_bin / file_to_base64 / base64_to_file / hex_to_file / txt_save_hex_file。",
+    ],
+    aka: ["文件转字节", "字节转文本", "Bytes 字面量", "bytes 转 str", "str 转 bytes", "文件读取为 Bytes",
+      "文件读取为文本", "进制流", "文件转Base64", "Base64转文件", "Hex转文件", "hex 文件", "fileByteBridge"],
+  },
 };

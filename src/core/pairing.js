@@ -131,11 +131,12 @@ export function concatBytes(...arrays) {
 export function sm9RandomScalar() {
   if (typeof crypto === "undefined" || typeof crypto.getRandomValues !== "function") throw new Error("当前环境无密码学安全随机源，无法执行 SM9 密钥生成");
   const bytes = new Uint8Array(32);
-  while (true) {
+  for (let tries = 0; tries < 256; tries++) {
     bytes.set(randBytes(bytes.length));
     const k = bytesToBig(bytes);
     if (k >= 1n && k < N) return k;
   }
+  throw new Error("SM9 随机源连续 256 次未产生有效标量");
 }
 
 // ============================================================

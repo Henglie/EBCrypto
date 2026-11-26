@@ -442,7 +442,7 @@ export default {
   "ui.qc.bytesBE": "بائٹس (big-endian)",
   "ui.qc.bytesLE": "بائٹس (little-endian)",
   "ui.qc.bitmap": "بٹ ویو (اُس بٹ کو الٹنے کے لیے خانے پر کلک کریں)",
-  "ui.qc.bitmapWide": "ورڈ چوڑائی 64 بٹ سے زیادہ ہے، اس لیے بٹ ویو چھپا دیا گیا (خانے بہت زیادہ ہیں)۔",
+  "ui.qc.bitmapWide": "ورڈ چوڑائی 256 بٹ سے زیادہ ہے، اس لیے بٹ ویو چھپا دیا گیا (خانے بہت زیادہ ہیں)۔",
   "ui.qc.expr": "اظہار",
   "ui.qc.exprPlaceholder": "مثلاً 0x401000 + 0x1234، 1 << 31، rotl(0x80000000, 1)",
   "ui.qc.eval": "حساب کریں",

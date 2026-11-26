@@ -651,7 +651,7 @@ export default {
   "ui.qc.bytesBE": "Octets (gros-boutiste)",
   "ui.qc.bytesLE": "Octets (petit-boutiste)",
   "ui.qc.bitmap": "Vue des bits (cliquez sur une case pour inverser ce bit)",
-  "ui.qc.bitmapWide": "La largeur dépasse 64 bits, la vue des bits est masquée (trop de cases).",
+  "ui.qc.bitmapWide": "La largeur dépasse 256 bits, la vue des bits est masquée (trop de cases).",
   "ui.qc.exprPlaceholder": "ex. 0x401000 + 0x1234, 1 << 31, rotl(0x80000000, 1)",
   "ui.qc.eval": "Évaluer",
   "ui.qc.exprHelp": "Prend en charge + - * / % ** et & | ^ ~ << >> >>>, les parenthèses, rotl/rotr ; littéraux avec préfixes 0x / 0b / 0o. Analyseur écrit à la main, sans eval.",

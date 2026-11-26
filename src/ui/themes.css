@@ -189,9 +189,9 @@ html[data-palette="rice-paper"] {
 }
 
 /* ============ 主题选择器色板（envPanel 注入） ============ */
-.env-variant-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: 8px; margin-top: 10px; }
+.env-variant-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
 .env-variant-swatch {
-  display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 4px; min-width: 0;
   border: 1px solid var(--outline-var); border-radius: var(--r-md);
   background: var(--surface-1); color: var(--on-surface);
   font: inherit; font-size: var(--fs-sm); cursor: pointer;
@@ -203,7 +203,8 @@ html[data-palette="rice-paper"] {
   width: 22px; height: 22px; border-radius: var(--r-full); flex: none;
   border: 1px solid var(--outline-var);
 }
-.env-variant-swatch .swatch-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.env-variant-swatch .swatch-name { max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: center; line-height: 1.35; }
+.env-section-title.env-lovely-title { text-transform: none; }
 
 /* ============ 首页大标题渐变文字（仅五主题启用；出厂主题无 --grad-brand 不命中选择器） ============ */
 html[data-palette="obsidian-gold"] .home-hero .op-title,
@@ -218,3 +219,33 @@ html[data-palette="rice-paper"] .home-hero .op-title {
 
 /* ============ 宣纸纸感薄雾（仅 rice-paper；body 叠加，不改布局） ============ */
 html[data-palette="rice-paper"] body { background-image: var(--surface-fx); }
+
+/* Imported colour schemes share the existing M3 controls and motion owners. */
+html[data-imported-palette] {
+  --bg: var(--palette-bg);
+  --surface: var(--palette-surface);
+  --surface-1: var(--palette-surface-1);
+  --surface-2: var(--palette-surface-2);
+  --surface-3: var(--palette-surface-3);
+  --surface-4: var(--palette-surface-4);
+  --surface-hi: var(--palette-surface-hi);
+  --primary: var(--palette-primary);
+  --on-primary: var(--palette-on-primary);
+  --primary-container: var(--palette-primary-container);
+  --on-primary-container: var(--palette-on-primary-container);
+  --on-surface: var(--palette-on-surface);
+  --on-surface-var: var(--palette-on-surface-var);
+  --outline: var(--palette-outline);
+  --outline-var: var(--palette-outline-var);
+  --error: var(--palette-error);
+  --on-error: var(--palette-on-error);
+  --success: var(--palette-success);
+  --warning: var(--palette-warning);
+  --on-warning: var(--palette-on-warning);
+  --warning-text: var(--palette-warning-text);
+  --field-bg: var(--palette-field-bg);
+  --flag-hit: var(--palette-flag-hit);
+  --flag-format: var(--palette-flag-format);
+  --grad-primary: var(--palette-grad-primary);
+}
+html[data-imported-palette] .sidenav { background: var(--palette-imported-sidebar); }

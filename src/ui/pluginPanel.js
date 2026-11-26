@@ -17,6 +17,9 @@ import {
   exportConfig, importConfig, isRemoteSource, isSupportedSource, listPendingRemote,
 } from "../plugin/pluginHost.js";
 import { exportManifest } from "../plugin/mcpBridge.js";
+// MCP HTTP token 是本地服务的持有者凭据（LAN 模式强制），必须始终来自系统熵；
+// 不能受用户在「增强随机性」里设置的固定种子控制，否则 token 可预测/碰撞。
+import { systemBytes } from "../core/randSource.js";
 // 离线增强包：数据/状态迁移在内核，本面板负责持久化与 SW 消息接线。
 import { PACKS, packPlan, markInstalled, markFailed } from "../core/offlinePacks.js";
 import { offlinePackPanel } from "./offlinePackPanel.js";
@@ -962,7 +965,7 @@ function sectionMcp() {
     el('option', { value: 'lan' }, '局域网 + 回环（强制 token）'),
   );
   const randomToken = () => {
-    const bytes = crypto.getRandomValues(new Uint8Array(24));
+    const bytes = systemBytes(24);
     let raw = '';
     for (const b of bytes) raw += String.fromCharCode(b);
     return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');

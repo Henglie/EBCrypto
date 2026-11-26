@@ -9,5 +9,8 @@ import { CORE_OP_STUBS } from "./lazyTables.generated.js";
 import { seedStub } from "./registry.js";
 
 for (const s of CORE_OP_STUBS) {
-  seedStub({ id: s.id, cat: s.cat, name: s.name, family: s.family || undefined, familyLabel: s.familyLabel || undefined });
+  seedStub({
+    id: s.id, cat: s.cat, name: s.name, family: s.family || undefined, familyLabel: s.familyLabel || undefined,
+    ...(s.requiresBridge ? { requiresBridge: true } : {}),
+  });
 }

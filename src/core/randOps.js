@@ -37,6 +37,9 @@ export const RAND_OPS = Object.freeze(new Set([
   "ascon", "fernet", "emojiAes", "yueChang", "dxBase64", "rabbit", "opensslDec",
   // —— 口令 / 派生 / 隐写 / 共享（随机 salt / 系数）——
   "bcrypt", "shamir", "stegpy", "txtmoji", "fuyouyue", "tianshu",
+  // 随曰 salt/nonce 与 StegoX PBKDF2 salt/AES-GCM IV 均经统一随机源取数：
+  // 随曰运行时已命中审计；StegoX 需密钥早退，按静态调用点补判。二者都应让用户拿到增强随机性开关。
+  "suiyue", "stegox",
   // —— 随机数工具本体 ——
   "randomSeed", "generateUuid",
   // —— 自研 / 复古编码 / 分析工具中带随机成分（2026-10-11 已统一接入 randSource）——

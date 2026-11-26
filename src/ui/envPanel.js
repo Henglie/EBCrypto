@@ -502,8 +502,9 @@ function renderThemeSection() {
   group.append(mk("light", "light_mode", "ui.env.themeLight"));
   group.append(mk("dark", "dark_mode", "ui.env.themeDark"));
   sec.append(group);
-  for (const series of ["m3", "cn"]) {
-    sec.append(el("div", { class: "env-section-title" }, t("ui.env.series." + series)));
+  for (const series of ["m3", "cn", "imported"]) {
+    sec.append(el("div", { class: "env-section-title" + (series === "imported" ? " env-lovely-title" : "") }, series === "imported"
+      ? (getLocale() === "en" ? "Lovely series" : "Lovely 系列") : t("ui.env.series." + series)));
     const grid = el("div", { class: "env-variant-grid" });
     for (const variant of THEME_VARIANTS.filter(item => item.series === series)) {
       const name = getLocale() === "en" ? variant.en : variant.zh;

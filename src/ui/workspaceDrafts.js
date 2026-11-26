@@ -1,3 +1,5 @@
+import { sanitizeDraftRecord, migrateDraftRecord, isResultSecretOp, opIdFromDraftId } from '../core/secretPolicy.js';
+import { getOp } from '../core/registry.js';
 import { encodeDraftFiles, decodeDraftFiles } from './draftBinary.js';
 
 const DB_NAME = 'ebctf-workspace-drafts';
@@ -98,6 +100,31 @@ export function createWorkspaceDrafts(root, { onClear, onRestore, onStorageError
         try { merge(JSON.parse(localStorage.getItem(key))); } catch { /* Ignore damaged drafts. */ }
       }
     } catch { /* IndexedDB still works when localStorage is unavailable. */ }
+    // 用户更新后首次加载：按新策略原子清理旧草稿。纯函数过滤只产生副本；
+    // journal 用过滤副本覆盖（不保留旧明文），库写入放同一事务，失败即不改库、下次重试。
+    let migrated = false;
+    for (const [id, rec] of records) {
+      if (rec?.meta?.migrated === 1) continue;
+      const opId = opIdFromDraftId(id);
+      const op = opId ? getOp(opId) : null;
+      // 声明未就绪（按需 ensureOp 未完成）时不迁移也不标记：
+      // 否则 declared=[] 会漏掉 privKey 这类只靠 sensitive 声明识别的字段，
+      // 且 migrated=1 固化后永不重试（T1560 独立验收实锤的竞态）。
+      if (opId && !op) continue;
+      if (opId && op && Array.isArray(op.params) && op.params.length === 0) continue;
+      const declared = op ? (op.params || []).filter(d => d && d.sensitive === true).map(d => d.key) : [];
+      const next = migrateDraftRecord(rec, { sensitiveKeys: declared, resultSecret: isResultSecretOp(opId, op) }).value;
+      records.set(id, next);
+      backup(next);
+      migrated = true;
+    }
+    if (migrated && db) await new Promise(resolve => {
+      try {
+        const tx = db.transaction('drafts', 'readwrite'), store = tx.objectStore('drafts');
+        store.clear(); for (const rec of records.values()) store.put(rec);
+        tx.oncomplete = tx.onerror = tx.onabort = resolve;
+      } catch { resolve(); }
+    });
     loaded = true;
   });
   const backup = record => {
@@ -149,8 +176,10 @@ export function createWorkspaceDrafts(root, { onClear, onRestore, onStorageError
         stale: node.hasAttribute('data-result-stale'),
       });
     }
-    const record = { id: binding.id, updated: Math.max(Date.now(), (previous?.updated || 0) + 1),
+    const raw = { id: binding.id, updated: Math.max(Date.now(), (previous?.updated || 0) + 1),
       meta: clone(binding.getMeta?.() || {}), areas: [...entries.values()] };
+    // 自动持久化前统一过滤：敏感参数与生成密钥结果不落盘，运行态 raw 不受影响。
+    const record = sanitizeDraftRecord(raw).value;
     records.set(record.id, record); persist(record);
   }
   function schedule() {
@@ -163,6 +192,20 @@ export function createWorkspaceDrafts(root, { onClear, onRestore, onStorageError
   function bind(id, getMeta, previousKeys = {}) {
     binding = { id, getMeta };
     const record = records.get(id);
+    // 补迁移：启动时 ready() 可能因按需 ensureOp 未完成而跳过（声明未就绪）。
+    // 此处 op 已加载、sensitive 声明可用，若旧稿仍未迁移则原子过滤并重持久化，
+    // 避免 privKey 这类只靠声明识别的字段随旧稿长期明文留存。
+    if (record && record.meta?.migrated !== 1) {
+      const opId = opIdFromDraftId(id);
+      const op = opId ? getOp(opId) : null;
+      if (!opId || op) {
+        const declared = op ? (op.params || []).filter(d => d && d.sensitive === true).map(d => d.key) : [];
+        const next = migrateDraftRecord(record, { sensitiveKeys: declared, resultSecret: isResultSecretOp(opId, op) }).value;
+        records.set(id, next);
+        backup(next);
+        if (db) { try { const tx = db.transaction('drafts', 'readwrite'), st = tx.objectStore('drafts'); st.put(next); } catch { /* DB best-effort */ } }
+      }
+    }
     suspended = true;
     try {
       const saved = new Map((record?.areas || []).map(area => [area.key, area]));
@@ -205,7 +248,7 @@ export function createWorkspaceDrafts(root, { onClear, onRestore, onStorageError
         node.removeAttribute('data-result-stale');
       }
       for (const [id, record] of records) records.set(id, { id, updated: Date.now(), areas: [], meta: {
-        params: record.meta?.params, dir: record.meta?.dir,
+        params: {}, dir: record.meta?.dir,
       } });
       try { for (const key of Object.keys(localStorage)) if (key.startsWith(PREFIX)) localStorage.removeItem(key); } catch { /* No journal. */ }
       await ready;

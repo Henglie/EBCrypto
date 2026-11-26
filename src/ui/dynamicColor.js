@@ -267,6 +267,7 @@ export function applyAccent(seedHex, opts = {}) {
 export function resetAccent() {
   const root = document.documentElement;
   for (const t of RED_STOPS) root.style.removeProperty('--red-' + t);
+  for (const t of NEUTRAL_STOPS) root.style.removeProperty('--n-' + t);
   root.style.removeProperty('--primary');
   root.style.removeProperty('--on-primary');
   root.style.removeProperty('--primary-container');

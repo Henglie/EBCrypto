@@ -133,7 +133,7 @@ const QC_FALLBACK = {
   "ui.qc.bytesBE": "字节（大端）",
   "ui.qc.bytesLE": "字节（小端）",
   "ui.qc.bitmap": "位视图（点格子翻转该位）",
-  "ui.qc.bitmapWide": "字宽超过 64 位，位视图已隐藏（格子太多反而看不清）。",
+  "ui.qc.bitmapWide": "字宽超过 256 位，位视图已隐藏（格子太多反而看不清）。",
   "ui.qc.expr": "表达式",
   "ui.qc.exprPlaceholder": "如 0x401000 + 0x1234、1 << 31、rotl(0x80000000, 1)、~0 & 0xFF",
   "ui.qc.eval": "求值",
@@ -518,7 +518,7 @@ function renderBits() {
   }
   R.bitWidth = S.width; R.bitButtons = [];
   R.bitsWrap.innerHTML = "";
-  if (S.width > 64) {
+  if (S.width > 256) {
     R.bitsWrap.append(el("div", { class: "qc-hint" }, tt("ui.qc.bitmapWide")));
     return;
   }

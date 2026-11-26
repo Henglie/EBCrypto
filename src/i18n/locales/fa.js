@@ -446,7 +446,7 @@ export default {
   "ui.qc.bytesBE": "بایت‌ها (big-endian)",
   "ui.qc.bytesLE": "بایت‌ها (little-endian)",
   "ui.qc.bitmap": "نمای بیت (روی خانه کلیک کنید تا آن بیت وارونه شود)",
-  "ui.qc.bitmapWide": "پهنای واژه بیش از ۶۴ بیت است، پس نمای بیت پنهان شد (خانه‌ها بسیار زیادند).",
+  "ui.qc.bitmapWide": "پهنای واژه بیش از ۲۵۶ بیت است، پس نمای بیت پنهان شد (خانه‌ها بسیار زیادند).",
   "ui.qc.expr": "عبارت",
   "ui.qc.exprPlaceholder": "مثلاً 0x401000 + 0x1234، 1 << 31، rotl(0x80000000, 1)",
   "ui.qc.eval": "محاسبه",

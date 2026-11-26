@@ -16,6 +16,7 @@
 import { registerEduEn } from "./eduContent.js";
 import EDU_EN_OPENSSL from "./edu-en/edu-openssl.en.js";
 import EDU_EN_SM_ATTACKS from "./edu-en/edu-sm-attacks.en.js";
+import EDU_EN_SM2_FAMILY from "./edu-en/edu-sm2-family.en.js";
 import EDU_EN_T796 from "./edu-en/edu-t796.en.js";
 import E_EN_CTF_CIPHER_EXT from "./edu-en/edu-ctf-cipher-ext.en.js";
 
@@ -277,6 +278,7 @@ Object.assign(EDU_EN, E_EN_TOKEN_SIGNING);
 Object.assign(EDU_EN, EDU_EN_OPENSSL);
 Object.assign(EDU_EN, EDU_EN_T796);
 Object.assign(EDU_EN, EDU_EN_SM_ATTACKS);
+Object.assign(EDU_EN, EDU_EN_SM2_FAMILY);
 EDU_EN.brainloller = {
   what: "Brainloller stores Brainfuck instructions as colors in a PNG.",
   principle: "This variant follows the bftools palette and a serpentine path. The black start and turn markers are not instructions; the firebrick pixel ends decoding.",

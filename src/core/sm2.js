@@ -253,6 +253,9 @@ function sm2Kdf(z, klen) {
 // ENTL_A = ID_A 位长（16 位大端）
 // ============================================================
 function computeZa(ida, pubX, pubY) {
+  // GB/T 32918.2-2016 §5.5: ENTL_A is a 16-bit bit length.
+  // Byte-aligned identities therefore contain at most floor(65535/8) bytes.
+  if (ida.length > 8191) throw new Error("SM2 标识 ID_A 最多 8191 字节（ENTL_A 为 16 位比特长度）");
   const entl = new Uint8Array(2);
   const bitLen = ida.length * 8;
   entl[0] = (bitLen >>> 8) & 0xff; entl[1] = bitLen & 0xff;
@@ -335,6 +338,7 @@ function assertPublicKey(x, y, label = "SM2 公钥") {
 // ============================================================
 function sm2Sign(m, dA, ida = defaultIda(), pubX = null, pubY = null, kFixed = null) {
   assertScalar(dA, "SM2 私钥");
+  if (dA === n - 1n) throw new Error("SM2 签名私钥需在 [1, n-2] 范围内");
   if (kFixed != null) assertScalar(kFixed, "SM2 随机数 k");
   // 公钥可选（缺省由 dA 派生）；k 可指定（官方向量用固定 k）
   let px = pubX, py = pubY;
@@ -439,14 +443,15 @@ function sm2Decrypt(cipher, dB, format = "c1c3c2") {
 }
 
 // 随机 k ∈ [1, n-1]。SM2 私钥运算禁止弱随机降级。
-function randomK() {
+function randomK(max = n - 1n) {
   if (typeof crypto === "undefined" || typeof crypto.getRandomValues !== "function") throw new Error("当前环境无密码学安全随机源，无法执行 SM2 签名/加密/密钥交换");
   const bytes = new Uint8Array(32);
-  while (true) {
+  for (let tries = 0; tries < 256; tries++) {
     bytes.set(randBytes(bytes.length));
     const k = bytesToBig(bytes);
-    if (k >= 1n && k < n) return k;
+    if (k >= 1n && k <= max) return k;
   }
+  throw new Error("SM2 随机源连续 256 次未产生有效标量");
 }
 function defaultIda() { return new TextEncoder().encode("1234567812345678"); }
 
@@ -610,10 +615,10 @@ register({
   family: "sm2",
   familyLabel: "keygen",
   name: "SM2 密钥对生成",
-  desc: "生成 SM2（sm2p256v1，GB/T 32918.5-2017 附录 A 基点）密钥对：私钥 d ∈ [1,n-1]，公钥 P=dG。私钥/公钥（非压缩与压缩格式）分开下载（产物协议）",
+  desc: "生成可用于签名及加密的 SM2（sm2p256v1）密钥对：私钥 d ∈ [1,n-2]（下界 1 因 d=0 公钥为无穷远点；上界 n-2 因 SM2 签名需 (1+d)⁻¹，d=n-1 无逆元；通用 ECC 签名无此项故为 [1,n-1]），公钥 P=dG。依据 GB/T 32918.2-2016 与 GB/T 32918.5-2017，私钥与公钥分开下载",
   params: [],
   run: () => {
-    const d = randomK();
+    const d = randomK(n - 2n);
     const P = ptAffine(ptMul(d, [Gx, Gy, 1n]));
     const xB = bigToBytes(P[0]), yB = bigToBytes(P[1]);
     const prefix = P[1] % 2n === 0n ? "02" : "03";
@@ -726,12 +731,12 @@ register({
   family: "sm2",
   familyLabel: "sign",
   name: "SM2 签名",
-  desc: "SM2 数字签名（GB/T 32918.2-2016）：ZA=SM3(ENTL||ID_A||a||b||G||P||d)，e=SM3(ZA||M)，输出 r||s（各 32 字节 hex 拼接）。填公钥 (x,y) 可按标准推导 Za，不填则按旧口径直接对 M 签",
+  desc: "SM2 数字签名（GB/T 32918.2-2016）：ZA=SM3(ENTL||ID_A||a||b||x_G||y_G||x_P||y_P)，e=SM3(ZA||M)，输出 r||s（各 32 字节 hex 拼接）。留空公钥时从私钥派生公钥，同样包含 ZA；签名私钥 d ∈ [1,n-2]，ID_A 按 UTF-8 编码后最多 8191 字节",
   params: [
     { sensitive: true, key: "privKey", label: "私钥 d（hex）", type: "text", default: "", placeholder: "32 字节 hex" },
     { key: "ida", label: "标识 ID_A", type: "text", default: "1234567812345678", placeholder: "签名用（默认官方样例 ID）" },
-    { key: "pubX", label: "公钥 X（hex，可选）", type: "text", default: "", placeholder: "填了按标准 Za 签（推荐）" },
-    { key: "pubY", label: "公钥 Y（hex，可选）", type: "text", default: "", placeholder: "同上" },
+    { key: "pubX", label: "公钥 X（hex，可选）", type: "text", default: "", placeholder: "留空时从私钥派生公钥" },
+    { key: "pubY", label: "公钥 Y（hex，可选）", type: "text", default: "", placeholder: "填写时 X/Y 须同时提供并与私钥匹配" },
     { key: "dataEnc", label: "输入编码", type: "select", default: "utf8", options: ENC_OPTS },
     { key: "outEnc", label: "输出编码", type: "select", default: "hex", options: ENC_OPTS },
   ],
